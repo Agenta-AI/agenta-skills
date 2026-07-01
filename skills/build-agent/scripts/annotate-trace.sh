@@ -3,7 +3,7 @@
 #
 # Usage: annotate-trace.sh <application_id> "<note>"
 # NOTE: there is no agent-callable platform-op for this yet, so this is an experimenter/demo
-# tool. A self-reflecting AGENT cannot call it autonomously today (see verified-facts.md).
+# tool. A self-reflecting AGENT cannot call it autonomously today (see references/annotate-trace.md).
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 APP_ID="${1:?usage: annotate-trace.sh <application_id> \"<note>\"}"
 NOTE="${2:?note required}"

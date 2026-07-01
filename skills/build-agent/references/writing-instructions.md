@@ -40,6 +40,16 @@ Make the last numbered step the terminal tool (the post, the write), and say exp
 "finish by doing step N". The terminal action is the whole point of the run; do not let the
 instruction trail off after the reads.
 
+## Prefer narrow, filtered tools over big list dumps
+
+A tool that returns a huge payload (e.g. Slack `LIST_ALL_CHANNELS`, which can return ~200 KB) tends
+to make the agent reach for a shell/code tool (`python3`, `jq`) to sift the result — which trips a
+*separate* code-execution approval gate and derails the run, even when the instructions forbid it.
+Pick the narrowest action that answers the question: `FIND_CHANNELS` (server-side filtered) instead
+of `LIST_ALL_CHANNELS`; a single `GET_AN_ISSUE` when you know the number instead of
+`LIST_REPOSITORY_ISSUES`. Resolve an id once with a filtered action, pin the result into the
+instruction, and keep each run's tool payloads small.
+
 ## When a run stops short
 
 A multi-tool run can finish with no errors yet never reach the final action — it does the early

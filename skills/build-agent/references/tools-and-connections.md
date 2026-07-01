@@ -32,6 +32,14 @@ Each capability reports a connection `state`. Only `ready` means you can wire an
 Any other state (for example `needs_auth`) means the integration is not connected for this
 project yet.
 
+**The per-capability `state` and the `CONNECTIONS:` block are authoritative — the headline
+`READY (all primary connections ready)` line is not.** `READY: true` only means the connection
+of whatever tool got matched as *primary* is ready; if discovery matched the wrong integration
+(it matches on words — see "Discovery is a search" below), `READY` can say `true` while the
+integration you actually asked for is `needs_auth`. Always confirm the matched tool's
+`integration` is the one you wanted, and read the `CONNECTIONS:` block for that integration's
+real state, before you trust the headline.
+
 ## needs_auth means stop
 
 If a needed connection is not `ready`, **stop**. Do not guess a connection slug, do not
@@ -56,8 +64,14 @@ When the connection is `ready`, drop the printed `tool` object straight into
 
 ```json
 { "type": "gateway", "provider": "composio", "integration": "github",
-  "action": "GET_THE_AUTHENTICATED_USER", "connection": "github-08f" }
+  "action": "GET_THE_AUTHENTICATED_USER", "connection": "<connection-slug>" }
 ```
+
+Use the exact `connection` slug that `discover-tools.sh` printed for *your* project — do not
+copy the placeholder above, and do not copy a slug out of these docs. A project can have **more
+than one connection for the same integration** (e.g. two GitHub connections). `discover-tools.sh`
+picks one and prints its slug; if you need a specific one, run `list-connections.sh` to see all
+of them and set the slug you want.
 
 An agent that chains several tools needs an explicit numbered instruction that names those
 tools in order and ends on the terminal action — see `writing-instructions.md`.

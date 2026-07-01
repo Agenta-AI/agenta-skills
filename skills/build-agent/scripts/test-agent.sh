@@ -55,8 +55,10 @@ TRACE_ID="$(awk 'tolower($1)=="x-ag-trace-id:" {print $2}' "$HDR" | tr -d '\r')"
 OUTPUT="$(jq -rj 'select(.type=="message_delta") | .data.delta // ""' "$STREAM" 2>/dev/null)"
 # TOOLS: the ordered tool_call names, short form (strip the mcp__agenta-tools__<integration>__ prefix).
 TOOLS="$(jq -r 'select(.type=="tool_call") | (.data.name // "?") | sub("^mcp__agenta-tools__";"")' "$STREAM" 2>/dev/null)"
-N_CALLS="$(jq -r 'select(.type=="tool_call")   | .data.id' "$STREAM" 2>/dev/null | grep -c .)"
-N_RESULTS="$(jq -r 'select(.type=="tool_result") | .data.id' "$STREAM" 2>/dev/null | grep -c .)"
+# grep -c prints 0 but EXITS 1 on no matches; under `set -e` (from lib.sh) that would kill the
+# script on a zero-tool-call run (the common no-tools agent) before printing anything. Guard it.
+N_CALLS="$(jq -r 'select(.type=="tool_call")   | .data.id' "$STREAM" 2>/dev/null | grep -c . || true)"
+N_RESULTS="$(jq -r 'select(.type=="tool_result") | .data.id' "$STREAM" 2>/dev/null | grep -c . || true)"
 APPROVALS="$(jq -r 'select(.type=="interaction_request")
   | "\(.data.kind // "interaction") on \(.data.payload.toolCall.title // .data.payload.toolCall.toolCallId // "?" | sub("^mcp__agenta-tools__";""))"' "$STREAM" 2>/dev/null)"
 

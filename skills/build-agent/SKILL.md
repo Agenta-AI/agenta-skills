@@ -158,11 +158,14 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
 - **needs_auth means stop.** If a needed connection is not `ready`, stop and ask the user to
   connect it. That is the whole job for that step.
 - **Discovery is a search, not an oracle.** `discover-tools.sh` / `discover-triggers.sh` return
-  high-recall best guesses over the live catalog. The matched **integration** and **connection
-  state** are reliable; the matched **action/event** is not always right. Always verify the
-  chosen action is what you want before wiring it — a search for "new telegram message" can
-  return a Slack event because it matched the word "message". If it looks off, re-word the
-  fragment or pick from the alternatives.
+  high-recall best guesses over the live catalog. The matched **connection state** is reliable;
+  the matched **integration and action** are not always right. A search matches on words: "save
+  notes to Notion" can match Slack's `SEARCH_MESSAGES` as the primary tool and still print
+  `READY: true` — while the Notion action you wanted is buried in `alternatives` and its
+  connection is `needs_auth`. So: **confirm the matched tool's `integration` is the one you
+  asked for**, and treat the per-integration `CONNECTIONS:` block (not the headline `READY`
+  line) as the source of truth. If the match looks off, re-word the fragment or pick from the
+  alternatives — a search for "new telegram message" can return a Slack event the same way.
 - **A failed build still creates the app.** If `build.sh` creates the app but the invoke fails,
   the app (and its slug) already exist. Fix the config and re-test with `test-agent.sh` against
   the existing `application_id` — do NOT re-run `build.sh` with the same slug (it conflicts).
@@ -193,11 +196,15 @@ with a blunter, numbered instruction — the config is usually fine, the run jus
 
 `test-agent.sh` also prints an `APPROVAL:` line when a WRITE (like `SEND_MESSAGE`) trips a
 human-approval gate. The run pauses there; over a one-shot HTTP invoke the stream ends at the
-gate, so that tool's RESULT is not in the stream even when the headless policy later auto-runs
-it — the call shows, its final result does not.
+gate, so that tool's RESULT is not in the stream — and the write may not complete in that invoke
+at all (the approval can go unresolved). The call shows in the stream; its result does not.
 
-`check-tools.sh` is the **fallback** for the one thing the stream can't show: whether a gated
-WRITE actually returned `ok:true`. Reach for it only to confirm a terminal write completed:
-`bash scripts/check-tools.sh <trace_id> SEND_MESSAGE` prints `VERDICT: PASS` only when that
-tool executed. `error markers: none` alone is NOT proof — the terminal tool being in the
-executed list is.
+`check-tools.sh` is the **fallback** for what the stream can't show: whether the terminal tool
+actually RETURNED. It reads the trace spans — a tool's span appears as soon as it is CALLED, but
+only carries a result once it actually returned. So `bash scripts/check-tools.sh <trace_id>
+SEND_MESSAGE` prints `VERDICT: PASS` only when that tool ran AND returned a result; `UNCONFIRMED`
+when the tool was dispatched but its span has no result (the classic stalled-approval signature);
+and `INCOMPLETE` when it never ran. **A tool NAME appearing in the executed list is NOT proof it
+completed** — a gated write can sit in the list with no result. And for an external WRITE, even a
+returned result is only truly confirmed by reading the side effect back (e.g. fetch the channel
+history). That read-back is the one certain check.

@@ -63,10 +63,13 @@ what it prints, then add the `connection` slug when the connection is `ready`.
 
 ```json
 { "type": "gateway", "provider": "composio", "integration": "github",
-  "action": "GET_THE_AUTHENTICATED_USER", "connection": "github-08f" }
+  "action": "GET_THE_AUTHENTICATED_USER", "connection": "<connection-slug>" }
 ```
 
-See `tools-and-connections.md` for how discovery and connection state work.
+`<connection-slug>` is a placeholder — use the exact slug `discover-tools.sh` printed for your
+project (e.g. something like `github-a1b`), never a slug copied from these docs. See
+`tools-and-connections.md` for how discovery and connection state work, and how to handle a
+project that has more than one connection for the same integration.
 
 ## A skill entry (name / description / body / files)
 

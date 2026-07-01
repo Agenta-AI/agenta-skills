@@ -44,7 +44,8 @@ instruction trail off after the reads.
 
 A multi-tool run can finish with no errors yet never reach the final action — it does the early
 reads, then wanders (into its own builtin tools, or "let me check the triggers…") and stops.
-Verify the terminal tool actually ran with `check-tools.sh <trace_id> <TERMINAL_TOOL>` (see the
-Verify section of `SKILL.md`). If the verdict is INCOMPLETE, the config is usually fine — the
-run just wandered. Re-test with a blunter, more explicit numbered instruction using the rules
-above.
+Read `test-agent.sh`'s `TOOLS:` line: if the terminal tool is in the ordered list, the run got
+there; if it's missing, the run stopped short. (Only to confirm a gated WRITE actually returned
+`ok:true` do you need `check-tools.sh <trace_id> <TERMINAL_TOOL>` — see the Verify section of
+`SKILL.md`.) If it stopped short, the config is usually fine — the run just wandered. Re-test
+with a blunter, more explicit numbered instruction using the rules above.

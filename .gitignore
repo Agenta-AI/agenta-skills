@@ -1,0 +1,9 @@
+# Never commit credentials
+.env
+*.env
+
+# Runtime artifacts the skill writes in a user's project
+configs/
+
+# OS noise
+.DS_Store

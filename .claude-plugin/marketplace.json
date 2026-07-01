@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "agenta",
+  "owner": { "name": "Agenta", "email": "team@agenta.ai" },
+  "description": "Skills that teach your coding agent to build Agenta agents via the Agenta API.",
+  "plugins": [
+    {
+      "name": "build-agent",
+      "source": "./",
+      "strict": false,
+      "skills": ["./skills/build-agent"],
+      "description": "Turn a plain-language request into a working, tested Agenta agent.",
+      "version": "0.1.0",
+      "author": { "name": "Agenta" },
+      "homepage": "https://docs.agenta.ai",
+      "license": "MIT",
+      "keywords": ["agenta", "agents", "build", "llm"]
+    }
+  ]
+}

@@ -120,7 +120,6 @@ endpoints and load credentials themselves — you never handle the API key.
 - `discover-tools.sh "<capability>" ...` — find gateway tools for plain-language actions; shows
   each connection's state and the ready-to-wire tool object.
 - `discover-triggers.sh "<event>" ...` — find event triggers (for subscriptions only).
-- `list-connections.sh` — what integrations this project already has connected.
 - `create-schedule.sh <variant_id> "<cron UTC>" <event_key> [name] [inputs_json]` — cron trigger.
 - `triggers.sh schedules|subscriptions|deliveries|rm-schedule <id>|rm-subscription <id>`.
 - `check-tools.sh <trace_id> [terminal_tool]` — OPTIONAL fallback. `test-agent.sh` already lists
@@ -128,8 +127,10 @@ endpoints and load credentials themselves — you never handle the API key.
   actually returned `ok:true` — pass the terminal tool for a PASS/INCOMPLETE verdict from the
   trace spans.
 - `archive-agent.sh <application_id>` — soft-delete an app; use it to clean up or free a slug.
-- `annotate-trace.sh <application_id> "<note>"` — record a reflection (see
-  `references/annotate-trace.md`).
+
+Two extras live in `scripts/extras/` and stay out of the loop: `list-connections.sh`
+(discover already prints the CONNECTIONS block; see `references/tools-and-connections.md`)
+and `annotate-trace.sh` (an experimenter demo; see `references/annotate-trace.md`).
 
 ## Deeper topics (read on demand)
 

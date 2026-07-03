@@ -70,8 +70,8 @@ When the connection is `ready`, drop the printed `tool` object straight into
 Use the exact `connection` slug that `discover-tools.sh` printed for *your* project — do not
 copy the placeholder above, and do not copy a slug out of these docs. A project can have **more
 than one connection for the same integration** (e.g. two GitHub connections). `discover-tools.sh`
-picks one and prints its slug; if you need a specific one, run `list-connections.sh` to see all
-of them and set the slug you want.
+picks one and prints its slug; if you need a specific one, run
+`bash scripts/extras/list-connections.sh` to see all of them and set the slug you want.
 
 An agent that chains several tools needs an explicit numbered instruction that names those
 tools in order and ends on the terminal action — see `writing-instructions.md`.
@@ -92,8 +92,10 @@ this path — use `create-schedule.sh` directly.
 ## List what is already connected
 
 ```bash
-bash scripts/list-connections.sh
+bash scripts/extras/list-connections.sh
 ```
 
-One line per connection: integration, slug, and whether it is valid and active. Use it to find
-the slug for a connection you already know is `ready`.
+One line per connection: integration, slug, id, and whether it is valid and active. This
+lives in `scripts/extras/` because the discover scripts already print the `CONNECTIONS:`
+block you normally need; reach for it only when you need every connection (e.g. two
+connections for the same integration) or a connection id.

@@ -18,8 +18,11 @@ trace in Agenta.
 ## How to run it
 
 ```bash
-bash scripts/annotate-trace.sh <application_id> "<note>"
+bash scripts/extras/annotate-trace.sh <application_id> "<note>"
 ```
+
+The script lives in `scripts/extras/` (not the core loop): it is an experimenter demo, not
+something the build loop calls.
 
 It prints the created annotation's span id and the note text. Get the `application_id` from
 `create-agent.sh` / `build.sh`, and get a trace id from `test-agent.sh` if you want to point a

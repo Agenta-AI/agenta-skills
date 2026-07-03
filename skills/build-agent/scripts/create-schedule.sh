@@ -5,6 +5,7 @@
 #   <cron>       five-field expression, UTC, one-minute floor (e.g. "0 7,13 * * *" = 07:00 & 13:00 UTC daily)
 #   <event_key>  a label recorded on each delivery (free text)
 #   [inputs_json] optional JSON object/string mapped into the run inputs each fire
+#                 (shape: references/trigger-inputs.md)
 #
 # Prints the created schedule id (and name). Convert the user's local time to UTC yourself.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"

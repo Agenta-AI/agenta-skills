@@ -141,6 +141,7 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
 | Understand the full agent config field by field | `references/config-schema.md` |
 | Discover tools, wire a connection, add an event trigger | `references/tools-and-connections.md` |
 | Write instructions for a multi-tool or scheduled agent | `references/writing-instructions.md` |
+| Shape the inputs a schedule or subscription passes to the run | `references/trigger-inputs.md` |
 | Record a reflection against a trace | `references/annotate-trace.md` |
 
 ## Hard rules (these prevent the usual failures)

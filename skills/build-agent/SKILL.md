@@ -89,8 +89,10 @@ field by field — tool entries, skill entries, and the fields that 500 if mispl
 5. **Create and test in one shot:** `bash scripts/build.sh <config> <slug> "<test message>"`.
    Read the OUTPUT and RESOLVED lines. RESOLVED must show
    `harness=claude model=sonnet connection=self_managed`.
-6. **If it needs a schedule**, create it with `bash scripts/create-schedule.sh` against the
-   variant id, then confirm with `bash scripts/triggers.sh schedules`.
+6. **If it needs a trigger**, create it against the variant id: a schedule with
+   `bash scripts/create-schedule.sh`, an event subscription with
+   `bash scripts/create-subscription.sh` (only after `discover-triggers.sh` and a `ready`
+   connection). Confirm with `bash scripts/triggers.sh schedules` (or `subscriptions`).
 7. **Report** in a short bullet list: what you built, the artifact ids, what you tested, the
    result, and anything that needs the user.
 
@@ -102,7 +104,8 @@ field by field — tool entries, skill entries, and the fields that 500 if mispl
 | apply a body of know-how (a writing style, a review rubric) | a skill | one `skills` entry |
 | read or write in an outside tool (GitHub, Slack, …) | gateway tools | `discover-tools.sh`, then `tools` entries |
 | run on a clock (e.g. twice a day) | a schedule | build the agent, then `create-schedule.sh` |
-| react to an outside event (new issue, new message) | a subscription | `discover-triggers.sh`, then a subscription (needs a ready connection) |
+| react to an outside event (new issue, new message) | a subscription | `discover-triggers.sh`, then `create-subscription.sh` (needs a ready connection) |
+| change an agent that already exists | a new revision | `update-agent.sh` against the variant id, then re-test |
 
 ## Scripts (your only interface to the API)
 
@@ -120,7 +123,12 @@ endpoints and load credentials themselves — you never handle the API key.
 - `discover-tools.sh "<capability>" ...` — find gateway tools for plain-language actions; shows
   each connection's state and the ready-to-wire tool object.
 - `discover-triggers.sh "<event>" ...` — find event triggers (for subscriptions only).
+- `update-agent.sh <variant_id> <config.json> [message]` — commit a new config to an EXISTING
+  agent. Prefer this over archive-and-recreate: the slug, the ids, and any triggers survive.
 - `create-schedule.sh <variant_id> "<cron UTC>" <event_key> [name] [inputs_json]` — cron trigger.
+- `create-subscription.sh <variant_id> <event_key> <connection> [name] [trigger_config_json]
+  [inputs_json]` — event trigger. The connection (id or slug) must be `ready` first;
+  verify actual fires with `triggers.sh deliveries`.
 - `triggers.sh schedules|subscriptions|deliveries|rm-schedule <id>|rm-subscription <id>`.
 - `check-tools.sh <trace_id> [terminal_tool]` — OPTIONAL fallback. `test-agent.sh` already lists
   the tools a run called (its `TOOLS:` line). Reach for this only to confirm a gated WRITE
@@ -168,6 +176,10 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
   asked for**, and treat the per-integration `CONNECTIONS:` block (not the headline `READY`
   line) as the source of truth. If the match looks off, re-word the fragment or pick from the
   alternatives — a search for "new telegram message" can return a Slack event the same way.
+- **Change an existing agent by committing, not recreating.** `update-agent.sh <variant_id>
+  <config.json>` commits a new revision to the same app; the slug, the ids, and any schedules
+  or subscriptions keep working. Archive-and-recreate loses all of them. Re-test after the
+  update with `test-agent.sh`.
 - **A failed build still creates the app.** If `build.sh` creates the app but the invoke fails,
   the app (and its slug) already exist. Fix the config and re-test with `test-agent.sh` against
   the existing `application_id` — do NOT re-run `build.sh` with the same slug (it conflicts).

@@ -89,6 +89,24 @@ It prints, per fragment, the `event_key`, the connection state, and the `trigger
 schema hint. This is for EVENT subscriptions only. A time-based schedule (cron) does NOT use
 this path — use `create-schedule.sh` directly.
 
+When the event's connection is `ready`, create the subscription:
+
+```bash
+bash scripts/create-subscription.sh <variant_id> <event_key> <connection> \
+  [name] [trigger_config_json] [inputs_json]
+```
+
+- `<connection>` is the event source's connection **id or slug**; the script resolves a slug
+  to the id, and on a miss it lists the project's connections.
+- `[trigger_config_json]` carries the event parameters the `trigger_config` schema hint asks
+  for (e.g. which repo, which channel). Omit it when the schema needs nothing.
+- `[inputs_json]` shapes what each fire passes to the run — see `trigger-inputs.md`.
+
+If the connection is **not** `ready`, do not create the subscription: stop and ask the user
+to connect the integration (the "needs_auth means stop" rule above). And a created
+subscription proves nothing fired yet — confirm real deliveries with
+`bash scripts/triggers.sh deliveries`.
+
 ## List what is already connected
 
 ```bash

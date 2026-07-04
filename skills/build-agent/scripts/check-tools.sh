@@ -13,9 +13,12 @@
 # non-empty output IS the reliable signal. For an external WRITE, the only certain proof of the
 # side effect is reading it back (e.g. fetch the Slack channel history).
 #
-# Use this to verify a MULTI-TOOL agent: such runs can return an empty/partial invoke OUTPUT
-# even when every tool call succeeded (see the Verify section of SKILL.md). They can also STOP
-# SHORT (finish with no errors but never reach the final tool) or STALL at an approval gate.
+# `test-agent.sh`'s batch invoke already lists every tool called and each result's ok/ERROR
+# straight from `data.outputs.messages` (see the Verify section of SKILL.md) — you usually don't
+# need this script. Reach for it in two cases: a run that STOPPED SHORT (finished with no errors
+# but never reached the final tool — check-tools confirms it truly never ran) or STALLED at an
+# approval gate (`stop_reason == "paused"`), where the gated tool's call is in the invoke response
+# but it has no result yet because the run paused before it executed.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 TRACE_ID="${1:?usage: check-tools.sh <trace_id> [expected_terminal_tool]}"
 EXPECT="${2:-}"

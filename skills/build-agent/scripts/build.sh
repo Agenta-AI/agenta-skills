@@ -2,7 +2,7 @@
 # Create an agent and test it in one shot (the fast path for simple agents).
 #
 # Usage: build.sh <config.json> <slug> "<test message>" [name]
-# Prints the create ids, then the OUTPUT / TOOLS / RESOLVED / TRACE from one streaming test invoke.
+# Prints the create ids, then the OUTPUT / TOOLS / RESOLVED / TRACE from one batch test invoke.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 CONFIG_FILE="${1:?usage: build.sh <config.json> <slug> \"<test message>\" [name]}"

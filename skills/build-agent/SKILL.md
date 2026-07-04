@@ -116,10 +116,11 @@ endpoints and load credentials themselves — you never handle the API key.
 - `build.sh <config.json> <slug> "<msg>" [name]` — create the agent AND test it. The fast path.
 - `create-agent.sh <config.json> <slug> [name]` — create only; prints `application_id` /
   `variant_id` / `revision_id`. Use when you need the variant id before scheduling.
-- `test-agent.sh <application_id> <config.json> "<msg>"` — streaming invoke + verify. Prints
-  OUTPUT, a `TOOLS:` line (every tool called, in order, with call/result counts), an `APPROVAL:`
-  line when a tool trips an approval gate, RESOLVED (the config the run actually used), and the
-  TRACE id.
+- `test-agent.sh <application_id> <config.json> "<msg>"` — batch invoke + verify. A single
+  non-streaming call returns the full real turn, so it prints OUTPUT (the last assistant
+  message), a `TOOLS:` line (every tool called, in order, with call/result counts), an
+  `APPROVAL:` line when the run paused on an approval gate, RESOLVED (the config the run
+  actually used), and the TRACE id.
 - `discover-tools.sh "<capability>" ...` — find gateway tools for plain-language actions; shows
   each connection's state and the ready-to-wire tool object.
 - `discover-triggers.sh "<event>" ...` — find event triggers (for subscriptions only).
@@ -184,41 +185,53 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
   the app (and its slug) already exist. Fix the config and re-test with `test-agent.sh` against
   the existing `application_id` — do NOT re-run `build.sh` with the same slug (it conflicts).
   For a clean retry, `archive-agent.sh <application_id>` first.
-- **Invoke carries the config inline (provisional / open item).** `build.sh` and `test-agent.sh`
-  inline the full config on every invoke against the low-level agent-service endpoint — a lab
-  artifact. The product API invoke path loads a committed reference server-side, so
-  bare-reference invoke is a product feature. This detail is still being finalized; treat it as
-  provisional and don't rewrite the scripts to invoke by bare reference.
+- **Invoke carries the config inline (a lab artifact, not a gap).** `build.sh` and
+  `test-agent.sh` inline the full config on every invoke against the low-level agent-service
+  endpoint, which does not hydrate a committed reference. That part is unrelated to the
+  endpoint/auth/body-shape contract itself, which is settled — see
+  `docs/designs/invoke-negotiations/specs.md` in the `agenta` repo. The product API invoke path
+  loads a committed reference server-side, so bare-reference invoke is a real product feature;
+  this kit still doesn't use that path, and there's no need to rewrite the scripts to invoke by
+  bare reference.
 - **Report short.** A few bullets. Lead with the result and the artifact ids.
 
 ## Verify (don't trust a 200)
 
-`test-agent.sh` prints RESOLVED from the run's trace. It must match what you intended. If it
-shows a different harness/model, the run silently fell back — fix the config and re-test.
+`test-agent.sh` sends a non-streaming invoke (`Accept: application/json`). The response's
+`data.outputs` carries the run's full real turn, not just a final string: `messages` (assistant
+text plus a `role: "tool"` entry for every tool call and result, in order), `stop_reason`, and —
+only when the run paused on an approval gate — `pending_interaction`. The script reads this
+directly, so OUTPUT / TOOLS / APPROVAL below come straight off the invoke response, no trace
+needed. (Endpoint, auth, body shape, and this response contract are settled — see
+`docs/designs/invoke-negotiations/specs.md` in the `agenta` repo. The script sends no extra
+headers, so it gets the defaults: full transcript, resolved workflow embeds.)
+
+`test-agent.sh` also prints RESOLVED from the run's trace. It must match what you intended. If
+it shows a different harness/model, the run silently fell back — fix the config and re-test.
 Traces flush a second or two late; the script already retries.
 
-**Multi-tool agents — read the `TOOLS:` line, not just OUTPUT.** When a run makes several tool
-calls, it often ends on its tool-call turn, so the assistant OUTPUT is EMPTY or mid-sentence
-even though the tools ran. Don't read that as failure. `test-agent.sh` uses a streaming invoke,
-so its `TOOLS:` line lists every tool the run CALLED, in order (e.g.
-`github__LIST_COMMITS -> ... -> slack__SEND_MESSAGE (4 calls, 3 results)`). That line is your
-reliable "did it reach the terminal tool" signal, straight off the invoke — no trace needed. If
-the terminal tool is in the list, the run got there; if it's missing, the run STOPPED SHORT (did
-the early reads, then wandered and never reached the final action). If it stopped short, re-test
-with a blunter, numbered instruction — the config is usually fine, the run just wandered. See
-`references/writing-instructions.md`.
+**Multi-tool agents — read the `TOOLS:` line, not just OUTPUT.** A run that makes several tool
+calls can end on its tool-call turn, so OUTPUT (the last assistant message) is genuinely EMPTY —
+that is not a failure or a parsing gap, it means the run's last turn was a tool call rather than
+a reply. `test-agent.sh`'s `TOOLS:` line lists every tool the run CALLED, in order, with each
+result's ok/ERROR (e.g. `github__LIST_COMMITS -> ok -> slack__SEND_MESSAGE -> ok (2 calls, 2
+results)`). That line is your reliable "did it reach the terminal tool, and did that tool return
+ok" signal. If the terminal tool is in the list with an ok result, the run got there and
+finished; if it's missing, the run STOPPED SHORT (did the early reads, then wandered and never
+reached the final action). If it stopped short, re-test with a blunter, numbered instruction —
+the config is usually fine, the run just wandered. See `references/writing-instructions.md`.
 
-`test-agent.sh` also prints an `APPROVAL:` line when a WRITE (like `SEND_MESSAGE`) trips a
-human-approval gate. The run pauses there; over a one-shot HTTP invoke the stream ends at the
-gate, so that tool's RESULT is not in the stream — and the write may not complete in that invoke
-at all (the approval can go unresolved). The call shows in the stream; its result does not.
+`test-agent.sh` prints an `APPROVAL:` line when `stop_reason == "paused"` — a WRITE (like
+`SEND_MESSAGE`) tripped a human-approval gate. The run stopped there: that tool's call is in
+TOOLS, but it has no matching result yet, because the run paused before executing it. The write
+may not complete within this invoke at all (the approval can go unresolved).
 
-`check-tools.sh` is the **fallback** for what the stream can't show: whether the terminal tool
-actually RETURNED. It reads the trace spans — a tool's span appears as soon as it is CALLED, but
-only carries a result once it actually returned. So `bash scripts/check-tools.sh <trace_id>
-SEND_MESSAGE` prints `VERDICT: PASS` only when that tool ran AND returned a result; `UNCONFIRMED`
-when the tool was dispatched but its span has no result (the classic stalled-approval signature);
-and `INCOMPLETE` when it never ran. **A tool NAME appearing in the executed list is NOT proof it
-completed** — a gated write can sit in the list with no result. And for an external WRITE, even a
-returned result is only truly confirmed by reading the side effect back (e.g. fetch the channel
-history). That read-back is the one certain check.
+`check-tools.sh` is the **fallback** for what this invoke can't show yet: whether a gated tool
+actually RETURNED after the fact. It reads the trace spans — a tool's span appears as soon as it
+is CALLED, but only carries a result once it actually returned. So `bash scripts/check-tools.sh
+<trace_id> SEND_MESSAGE` prints `VERDICT: PASS` only when that tool ran AND returned a result;
+`UNCONFIRMED` when the tool was dispatched but its span has no result (the classic
+stalled-approval signature); and `INCOMPLETE` when it never ran. **A tool NAME appearing in the
+executed list is NOT proof it completed** — a gated write can sit in the list with no result. And
+for an external WRITE, even a returned result is only truly confirmed by reading the side effect
+back (e.g. fetch the channel history). That read-back is the one certain check.

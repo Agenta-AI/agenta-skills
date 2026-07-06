@@ -177,6 +177,15 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
   asked for**, and treat the per-integration `CONNECTIONS:` block (not the headline `READY`
   line) as the source of truth. If the match looks off, re-word the fragment or pick from the
   alternatives — a search for "new telegram message" can return a Slack event the same way.
+  For `discover-triggers.sh` specifically, a right *integration* is not enough — the keyword
+  match can land on the wrong *event within that integration* (e.g. "new github issue opened"
+  matching a `GITHUB_ARTIFACT_CREATED_TRIGGER` event purely on the shared word "created", while
+  the connection still reports `ready`). Always read the `fires_on` line the script prints for
+  the MATCHED event, and the ALTERNATIVES block, before wiring anything into
+  `create-subscription.sh` — a plausible-looking `event_key` with the right integration and a
+  `ready` connection is not proof it fires on what you asked for. If nothing in MATCHED or
+  ALTERNATIVES actually corresponds to the requested event, **stop and tell the user this
+  integration doesn't support that trigger yet** — do not wire up the closest keyword hit.
 - **Change an existing agent by committing, not recreating.** `update-agent.sh <variant_id>
   <config.json>` commits a new revision to the same app; the slug, the ids, and any schedules
   or subscriptions keep working. Archive-and-recreate loses all of them. Re-test after the

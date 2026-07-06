@@ -89,10 +89,13 @@ field by field — tool entries, skill entries, and the fields that 500 if mispl
 5. **Create and test in one shot:** `bash scripts/build.sh <config> <slug> "<test message>"`.
    Read the OUTPUT and RESOLVED lines. RESOLVED must show
    `harness=claude model=sonnet connection=self_managed`.
-6. **If it needs a trigger**, create it against the variant id: a schedule with
-   `bash scripts/create-schedule.sh`, an event subscription with
-   `bash scripts/create-subscription.sh` (only after `discover-triggers.sh` and a `ready`
-   connection). Confirm with `bash scripts/triggers.sh schedules` (or `subscriptions`).
+6. **If it needs a trigger**, create it against the variant id AND the revision id (both
+   printed by `create-agent.sh` / `build.sh`) — a schedule with `bash scripts/create-schedule.sh`,
+   an event subscription with `bash scripts/create-subscription.sh` (only after
+   `discover-triggers.sh` and a `ready` connection). Passing the revision id is required: without
+   it the trigger has no bound version to run, which the Agenta UI treats as an error. Pass the
+   literal word `latest` in place of a revision id if you only have the variant id at hand.
+   Confirm with `bash scripts/triggers.sh schedules` (or `subscriptions`).
 7. **Report** in a short bullet list: what you built, the artifact ids, what you tested, the
    result, and anything that needs the user.
 
@@ -126,10 +129,14 @@ endpoints and load credentials themselves — you never handle the API key.
 - `discover-triggers.sh "<event>" ...` — find event triggers (for subscriptions only).
 - `update-agent.sh <variant_id> <config.json> [message]` — commit a new config to an EXISTING
   agent. Prefer this over archive-and-recreate: the slug, the ids, and any triggers survive.
-- `create-schedule.sh <variant_id> "<cron UTC>" <event_key> [name] [inputs_json]` — cron trigger.
-- `create-subscription.sh <variant_id> <event_key> <connection> [name] [trigger_config_json]
-  [inputs_json]` — event trigger. The connection (id or slug) must be `ready` first;
-  verify actual fires with `triggers.sh deliveries`.
+- `create-schedule.sh <variant_id> <revision_id> "<cron UTC>" <event_key> [name] [inputs_json]`
+  — cron trigger. The revision id (from `create-agent.sh` / `build.sh`) pins which committed
+  version runs; omitting it leaves the schedule with no bound revision. Pass `latest` instead
+  of a real id to have the script look up the variant's current HEAD revision for you.
+- `create-subscription.sh <variant_id> <revision_id> <event_key> <connection> [name]
+  [trigger_config_json] [inputs_json]` — event trigger. Same revision-id requirement (and
+  `latest` shortcut) as `create-schedule.sh`. The connection (id or slug) must be `ready`
+  first; verify actual fires with `triggers.sh deliveries`.
 - `triggers.sh schedules|subscriptions|deliveries|rm-schedule <id>|rm-subscription <id>`.
 - `check-tools.sh <trace_id> [terminal_tool]` — OPTIONAL fallback. `test-agent.sh` already lists
   the tools a run called (its `TOOLS:` line). Reach for this only to confirm a gated WRITE
@@ -155,6 +162,11 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
 
 ## Hard rules (these prevent the usual failures)
 
+- **A trigger needs the revision id, not just the variant id.** `create-schedule.sh` and
+  `create-subscription.sh` both take `<variant_id> <revision_id> ...` — pass both (printed by
+  `create-agent.sh` / `build.sh`), or pass `latest` in place of the revision id if you only have
+  the variant id at hand. Omitting the revision id creates a trigger with no bound version,
+  which the Agenta UI treats as an error ("Which version runs?" required, unset).
 - **Fewest calls.** A no-tools agent is exactly two actions: write the config, run `build.sh`.
   Don't re-list, don't re-verify facts already given here, don't re-read the schema.
 - **Test before you declare done.** A claim with no `build.sh` / `test-agent.sh` behind it does

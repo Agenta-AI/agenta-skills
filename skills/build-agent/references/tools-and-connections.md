@@ -92,10 +92,13 @@ this path — use `create-schedule.sh` directly.
 When the event's connection is `ready`, create the subscription:
 
 ```bash
-bash scripts/create-subscription.sh <variant_id> <event_key> <connection> \
+bash scripts/create-subscription.sh <variant_id> <revision_id> <event_key> <connection> \
   [name] [trigger_config_json] [inputs_json]
 ```
 
+- `<revision_id>` (from `create-agent.sh` / `build.sh`) pins which committed revision the
+  subscription runs. Omitting it leaves the subscription with no bound revision. Pass `latest`
+  instead of a real id to have the script look up the variant's current HEAD revision for you.
 - `<connection>` is the event source's connection **id or slug**; the script resolves a slug
   to the id, and on a miss it lists the project's connections.
 - `[trigger_config_json]` carries the event parameters the `trigger_config` schema hint asks

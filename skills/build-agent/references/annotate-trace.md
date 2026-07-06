@@ -30,7 +30,15 @@ human at the specific run the note is about.
 
 ## The current limitation
 
-There is no agent-callable platform operation for this yet, so this is an experimenter and
-demo tool. A self-reflecting **agent** cannot call it autonomously today — you run it yourself,
-from your terminal, about a run you just tested. Do not build an agent whose instructions tell
-it to annotate its own traces; that path does not exist yet.
+This script drives the public HTTP API from outside a run: you supply an `application_id`
+and a note yourself, from your terminal, about a run you already tested. That is still why it
+lives in `scripts/extras/` — there is no public-API equivalent bound to "your own current
+trace," so it stays an experimenter and demo tool for out-of-run annotation.
+
+That said, an agent built and run **on** the Agenta platform (with the default build kit) can
+self-annotate at runtime: it has an `annotate_trace` platform op that targets its own current
+trace and span automatically. The agent supplies only `references.evaluator.slug` (the
+annotation category, e.g. `self_reflection`) and `data.outputs` (the scores, labels, or notes);
+a new slug auto-creates a simple evaluator. Write instructions that call that op when you want
+an agent to grade itself as part of a run — reach for this script only when you, a human, want
+to attach a note from outside a run.

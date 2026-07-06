@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
-# Create a cron schedule that runs a given agent variant (wraps create_schedule).
+# Create a cron schedule that runs a given agent revision (wraps create_schedule).
 #
-# Usage: create-schedule.sh <variant_id> "<cron 5-field UTC>" <event_key> [name] [inputs_json]
+# Usage: create-schedule.sh <variant_id> <revision_id> "<cron 5-field UTC>" <event_key> [name] [inputs_json]
+#   <revision_id> from create-agent.sh / build.sh (or update-agent.sh after a change) — pins
+#                 which committed revision the schedule runs. Without this, the schedule has
+#                 no bound revision at all ("Which version runs?" is left unset in the Agenta
+#                 UI, which treats it as a required field).
 #   <cron>       five-field expression, UTC, one-minute floor (e.g. "0 7,13 * * *" = 07:00 & 13:00 UTC daily)
 #   <event_key>  a label recorded on each delivery (free text)
 #   [inputs_json] optional JSON object/string mapped into the run inputs each fire
 #                 (shape: references/trigger-inputs.md)
 #
 # Prints the created schedule id (and name). Convert the user's local time to UTC yourself.
+# If you later commit a new revision with update-agent.sh, re-run this (or the equivalent
+# update call) so the schedule points at the new revision_id — it does not follow automatically.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-VARIANT="${1:?usage: create-schedule.sh <variant_id> <cron> <event_key> [name] [inputs_json]}"
-CRON="${2:?cron required}"
-EVENT_KEY="${3:?event_key required}"
-NAME="${4:-$EVENT_KEY}"
-INPUTS="${5:-}"
+VARIANT="${1:?usage: create-schedule.sh <variant_id> <revision_id> <cron> <event_key> [name] [inputs_json]}"
+REVISION="${2:?usage: create-schedule.sh <variant_id> <revision_id> <cron> <event_key> [name] [inputs_json]}"
+CRON="${3:?cron required}"
+EVENT_KEY="${4:?event_key required}"
+NAME="${5:-$EVENT_KEY}"
+INPUTS="${6:-}"
 
-DATA="$(jq -n --arg ek "$EVENT_KEY" --arg cron "$CRON" --arg vid "$VARIANT" \
-  '{event_key:$ek, schedule:$cron, references:{workflow_variant:{id:$vid}}}')"
+DATA="$(jq -n --arg ek "$EVENT_KEY" --arg cron "$CRON" --arg vid "$VARIANT" --arg rid "$REVISION" \
+  '{event_key:$ek, schedule:$cron, references:{workflow_variant:{id:$vid}, workflow_revision:{id:$rid}}}')"
 if [[ -n "$INPUTS" ]]; then
   DATA="$(jq --argjson inp "$INPUTS" '. + {inputs_fields:$inp}' <<<"$DATA")"
 fi

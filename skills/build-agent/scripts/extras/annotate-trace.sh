@@ -3,8 +3,9 @@
 # traces (wraps POST /api/annotations/).
 #
 # Usage: extras/annotate-trace.sh <application_id> "<note>"
-# NOTE: there is no agent-callable platform-op for this yet, so this is an experimenter/demo
-# tool. A self-reflecting AGENT cannot call it autonomously today (see references/annotate-trace.md).
+# NOTE: this drives the public HTTP API from outside a run, so it stays an experimenter/demo
+# tool for human use. On-platform agents (default build kit) can self-annotate at runtime via
+# the `annotate_trace` platform op instead (see references/annotate-trace.md).
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 APP_ID="${1:?usage: extras/annotate-trace.sh <application_id> \"<note>\"}"
 NOTE="${2:?note required}"

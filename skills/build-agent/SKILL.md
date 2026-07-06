@@ -41,6 +41,12 @@ self-hosts (it defaults to Agenta cloud, `https://cloud.agenta.ai`).
   - **Hand them a block to paste:** give them the lines to `export`, or the `.env` contents
     to create themselves.
 - Never print or commit the key. Add `.env` to `.gitignore` if the directory is a repo.
+- **`https://cloud.agenta.ai` above is a one-time example for INITIAL setup only.** If a
+  later runtime error tells you to add a credential to the project vault (or anything else
+  that means "go to your Agenta project"), point the user at their actual configured
+  `$AGENTA_HOST` — read it from the environment/`.env`, don't repeat the cloud URL from this
+  section by habit. A self-hosted user sent to `cloud.agenta.ai` for a vault that lives on
+  their own domain will not find what you told them to look for.
 
 **2. Prerequisites.** Run `bash scripts/check-prereqs.sh`. It verifies `bash`, `curl`, and
 `jq` are installed. On a miss it prints the exact install command for the user's platform;
@@ -168,6 +174,11 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
 - **Crons are UTC, five fields, one-minute floor.** Convert the user's local time yourself.
 - **needs_auth means stop.** If a needed connection is not `ready`, stop and ask the user to
   connect it. That is the whole job for that step.
+- **Remediation guidance always uses the user's actual `$AGENTA_HOST`, never a hardcoded
+  cloud URL.** The `https://cloud.agenta.ai` example in the credentials section above is for
+  *initial* setup only. If a later runtime failure calls for telling the user to go add
+  something in their Agenta project (a vault key, a setting), point them at their actual
+  configured host — a self-hosted user sent to the cloud URL will look in the wrong place.
 - **Discovery is a search, not an oracle.** `discover-tools.sh` / `discover-triggers.sh` return
   high-recall best guesses over the live catalog. The matched **connection state** is reliable;
   the matched **integration and action** are not always right. A search matches on words: "save

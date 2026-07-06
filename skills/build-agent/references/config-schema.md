@@ -48,12 +48,28 @@ Keep `llm`, `mcps`, `harness`, `runner`, and `sandbox` exactly as in the templat
 user asks otherwise.
 
 - `llm.model` is an **alias** — `sonnet`, `opus`, `haiku`, or `default` — never a raw model id.
-- `llm.provider` is `anthropic` and `llm.connection.mode` is `self_managed` in the default
-  setup.
+- `llm.provider` is `anthropic` in the default setup. `llm.connection.mode` is the one field in
+  this block you actually choose: `self_managed` (the user's own provider API key — the
+  default written above) or `agenta` (the project's own managed/subscription key, no separate
+  provider key needed). Ask the user which they want during credentials setup (`SKILL.md`);
+  don't assume `self_managed` for a cloud user without asking.
 - `harness.kind` is `claude`. `runner.kind` is `sidecar`. `sandbox.kind` is `local`.
 
-RESOLVED (printed by `test-agent.sh`) must echo these back:
-`harness=claude model=sonnet connection=self_managed`. If it does not, the run fell back to a
+**`harness.kind` and `llm.provider` are coupled, not independent fields.** `harness.kind:
+"claude"` only runs Anthropic models — `llm.provider` must stay `"anthropic"` whenever
+`harness.kind` is `"claude"`. Don't change `llm.provider`/`llm.model` while leaving
+`harness.kind: "claude"` in place, even if you've seen a different default somewhere else
+(for example, the platform's own bare API schema for this endpoint shows a different
+`provider`/`harness.kind` pairing entirely — that's the platform's raw baseline for building
+agents *without* this skill, and it is not compatible with the `claude` harness this skill
+uses). This mismatch is accepted by the create/commit endpoints with no server-side error,
+but the agent then gets no Model & Harness resolved in the Agenta UI and never runs
+correctly — `create-agent.sh` / `update-agent.sh` now check for it and refuse to proceed if
+found, rather than let you learn this from a silently broken agent. `llm.connection.mode` is
+not part of this coupling — either mode works with the `claude` harness.
+
+RESOLVED (printed by `test-agent.sh`) must echo these back: `harness=claude model=sonnet` and
+the `connection` mode you configured. If the harness or model differ, the run fell back to a
 default — fix the config and re-test.
 
 ## A tool entry (gateway object)

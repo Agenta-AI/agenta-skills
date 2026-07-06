@@ -34,6 +34,13 @@ self-hosts (it defaults to Agenta cloud, `https://cloud.agenta.ai`).
 - Ask the user for their API key. Point them to it: the **API keys** page in their Agenta
   project settings (on cloud, under `https://cloud.agenta.ai`). Ask for the host URL only if
   they self-host, in which case it is their own Agenta domain.
+- **Ask which LLM connection mode they want** (`llm.connection.mode` in the config below):
+  `self_managed` (they bring their own provider API key — the default this skill writes) or
+  `agenta` (use their Agenta project's own managed/subscription key, no separate provider key
+  needed). Only ask this for cloud users — a self-hosted instance almost always means
+  `self_managed`, since it doesn't carry Agenta's own managed keys. Only in the `self_managed`
+  case do you also need a provider key: confirm the provider (`anthropic`, for the default
+  `claude` harness — see the coupling note below) and point them to that provider's key page.
 - Then offer to set it up for them, either way they prefer:
   - **Write it for them:** create a `.env` file in the working directory with
     `AGENTA_API_KEY=...` (and `AGENTA_HOST=...` if self-hosting). `lib.sh` picks up a local
@@ -66,10 +73,19 @@ The rest is fixed boilerplate — copy it exactly:
 }
 ```
 
-Keep `llm` / `harness` / `runner` / `sandbox` exactly as above unless told otherwise. `model`
-is an alias (`sonnet`, `opus`, `haiku`, `default`), never a raw model id. For the full config
-field by field — tool entries, skill entries, and the fields that 500 if misplaced — read
-`references/config-schema.md`.
+Keep `llm` / `harness` / `runner` / `sandbox` exactly as above unless told otherwise, except
+for `llm.connection.mode` (`self_managed` vs `agenta` — see the credentials step above) and
+`llm.model` (an alias: `sonnet`, `opus`, `haiku`, `default`, never a raw model id). **This is
+not one of the "fewest calls" simplifications** — do not improvise or substitute a different
+provider here even for the simplest one-line agent. `harness.kind: "claude"` only runs
+Anthropic models: `llm.provider` must stay `"anthropic"`. Pairing `harness.kind: "claude"`
+with any other provider (e.g. an `"openai"`/raw-model-id config you might see elsewhere, such
+as in the platform's own bare API schema default — that default is unrelated to this skill and
+not compatible with this harness) is accepted by the create/commit endpoints with no error, but
+the agent then gets no Model & Harness resolved in the Agenta UI and never runs correctly.
+`create-agent.sh` / `update-agent.sh` now reject this mismatch before calling the API — if you
+hit that error, fix the config rather than retrying. For the full config field by field — tool
+entries, skill entries, and the fields that 500 if misplaced — read `references/config-schema.md`.
 
 ## The loop (run it in order, skip what the ask doesn't need)
 
@@ -87,8 +103,8 @@ field by field — tool entries, skill entries, and the fields that 500 if mispl
    names the exact tools in order and ends on the terminal action — otherwise the run wanders
    or stops short. Depth in `references/writing-instructions.md`.
 5. **Create and test in one shot:** `bash scripts/build.sh <config> <slug> "<test message>"`.
-   Read the OUTPUT and RESOLVED lines. RESOLVED must show
-   `harness=claude model=sonnet connection=self_managed`.
+   Read the OUTPUT and RESOLVED lines. RESOLVED must show `harness=claude model=sonnet` and
+   the `connection` mode you configured (`self_managed` or `agenta`).
 6. **If it needs a trigger**, create it against the variant id: a schedule with
    `bash scripts/create-schedule.sh`, an event subscription with
    `bash scripts/create-subscription.sh` (only after `discover-triggers.sh` and a `ready`
@@ -155,6 +171,15 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
 
 ## Hard rules (these prevent the usual failures)
 
+- **`harness`/`runner`/`sandbox` are fixed, not a "fewest calls" shortcut; `llm.provider` is
+  fixed to the harness.** Copy them byte-for-byte from the boilerplate, even for the simplest
+  one-line agent — do not simplify or substitute a provider here. `harness.kind: "claude"` only
+  runs Anthropic models; if `llm.provider` is anything but `"anthropic"`, the agent gets no
+  Model & Harness resolved in the Agenta UI and silently never runs, even though creation
+  itself succeeds with no error. `create-agent.sh` / `update-agent.sh` reject this mismatch
+  before calling the API — treat that rejection as a config bug to fix, never as a reason to
+  retry with different values. `llm.connection.mode` is the one field in this block you DO
+  choose (see the credentials step): `self_managed` or `agenta`.
 - **Fewest calls.** A no-tools agent is exactly two actions: write the config, run `build.sh`.
   Don't re-list, don't re-verify facts already given here, don't re-read the schema.
 - **Test before you declare done.** A claim with no `build.sh` / `test-agent.sh` behind it does

@@ -7,6 +7,11 @@
 #   AGENTA_API_KEY   required. From your Agenta project settings (API keys).
 #   AGENTA_HOST      optional. Defaults to Agenta cloud. Set it only if self-hosting.
 #
+# AGENTA_HOST, not AGENTA_API_URL: these scripts curl the public REST API directly from
+# outside Agenta's infra, the same way the SDK derives its own api_url (host + "/api").
+# AGENTA_API_URL is a different, internal override for a workflow running INSIDE Agenta's
+# infra that needs a different internal address than the public host. Not relevant here.
+#
 # Precedence: values already in the environment win. If AGENTA_API_KEY is not in the
 # environment, the kit falls back to a .env file (AGENTA_ENV_FILE, then ./.env, then a
 # .env next to these scripts). The build-agent skill can write that .env for you.

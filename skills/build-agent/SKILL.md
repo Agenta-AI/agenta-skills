@@ -31,6 +31,15 @@ Do these two things once, before any build.
 **1. Credentials.** The scripts need `AGENTA_API_KEY`, and `AGENTA_HOST` only if the user
 self-hosts (it defaults to Agenta cloud, `https://cloud.agenta.ai`).
 
+`AGENTA_HOST` is the right variable here, not `AGENTA_API_URL`. These scripts call the
+public REST API directly from outside Agenta's own infrastructure (your machine, CI, and so
+on) the same way the Agenta SDK derives its own API URL: host + `/api`. `AGENTA_API_URL` is a
+different, internal override the SDK uses when a workflow it runs *inside* Agenta's
+infrastructure needs to reach the API at a different address than the public host (for
+example, docker-internal networking on a self-hosted install) — it does not apply to a caller
+hitting the public REST API from outside, which is all this skill ever does. Do not swap
+`AGENTA_HOST` for `AGENTA_API_URL` here.
+
 - Ask the user for their API key. Point them to it: the **API keys** page in their Agenta
   project settings (on cloud, under `https://cloud.agenta.ai`). Ask for the host URL only if
   they self-host, in which case it is their own Agenta domain.

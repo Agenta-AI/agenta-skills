@@ -49,10 +49,12 @@ user asks otherwise.
 
 - `llm.model` is an **alias** — `sonnet`, `opus`, `haiku`, or `default` — never a raw model id.
 - `llm.provider` is `anthropic` in the default setup. `llm.connection.mode` is the one field in
-  this block you actually choose: `self_managed` (the user's own provider API key — the
-  default written above) or `agenta` (the project's own managed/subscription key, no separate
-  provider key needed). Ask the user which they want during credentials setup (`SKILL.md`);
-  don't assume `self_managed` for a cloud user without asking.
+  this block you actually choose: `self_managed` (the *runner* is logged into its own Claude
+  Code / Codex subscription — Agenta needs no provider API key) or `agenta` (the user's
+  provider API key lives in Agenta's project vault and Agenta uses it on every call). **On
+  Agenta cloud, `self_managed` is not available at all** — cloud runners have no subscription
+  of their own, so cloud always means `agenta`. On a self-hosted instance, ask the user which
+  applies (`SKILL.md`'s credentials step) rather than assuming either one.
 - `harness.kind` is `claude`. `runner.kind` is `sidecar`. `sandbox.kind` is `local`.
 
 **`harness.kind` and `llm.provider` are coupled, not independent fields.** `harness.kind:

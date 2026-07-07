@@ -119,3 +119,32 @@ validate_agent_config() {
 validate_agent_config_delta() {
   _check_harness_provider_consistency "$1"
 }
+
+# Resolves a <revision_id> argument for create-schedule.sh / create-subscription.sh.
+# A real revision id (from create-agent.sh / build.sh / update-agent.sh) passes straight
+# through. The literal value "latest" (case-insensitive) instead fetches the variant's
+# current HEAD revision via /api/workflows/revisions/log, so a caller who only has the
+# variant_id at hand (e.g. wiring a trigger some time after the agent was built) doesn't
+# have to go look up the revision id first.
+#
+# Usage: rid="$(resolve_revision_id "$VARIANT" "$REVISION_ARG")" || exit 1
+resolve_revision_id() {
+  local variant_id="$1" revision_arg="${2:-}" requested resp rid
+  requested="$(printf '%s' "$revision_arg" | tr '[:upper:]' '[:lower:]')"
+  if [ -n "$revision_arg" ] && [ "$requested" != "latest" ]; then
+    printf '%s' "$revision_arg"
+    return 0
+  fi
+  resp="$(agenta_post "/api/workflows/revisions/log" \
+    "$(jq -n --arg vid "$variant_id" '{workflow_revisions:{workflow_variant_id:$vid, depth:1}}')")"
+  rid="$(jq -r '.workflow_revisions[0].id // empty' <<<"$resp")"
+  if [ -z "$rid" ]; then
+    {
+      echo "REVISION LOOKUP FAILED: could not resolve the latest revision for variant $variant_id."
+      echo "$resp" | head -c 800
+      echo
+    } >&2
+    return 1
+  fi
+  printf '%s' "$rid"
+}

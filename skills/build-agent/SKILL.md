@@ -34,13 +34,17 @@ self-hosts (it defaults to Agenta cloud, `https://cloud.agenta.ai`).
 - Ask the user for their API key. Point them to it: the **API keys** page in their Agenta
   project settings (on cloud, under `https://cloud.agenta.ai`). Ask for the host URL only if
   they self-host, in which case it is their own Agenta domain.
-- **Ask which LLM connection mode they want** (`llm.connection.mode` in the config below):
-  `self_managed` (they bring their own provider API key — the default this skill writes) or
-  `agenta` (use their Agenta project's own managed/subscription key, no separate provider key
-  needed). Only ask this for cloud users — a self-hosted instance almost always means
-  `self_managed`, since it doesn't carry Agenta's own managed keys. Only in the `self_managed`
-  case do you also need a provider key: confirm the provider (`anthropic`, for the default
-  `claude` harness — see the coupling note below) and point them to that provider's key page.
+- **Ask which LLM connection mode they want** (`llm.connection.mode` in the config below).
+  `self_managed` means the *runner* itself is logged into its own Claude Code / Codex
+  subscription (Claude Pro/Max, ChatGPT Plus, etc.) — Agenta needs no provider API key at all
+  for this. `agenta` means the user provides their provider API key *in Agenta* (the project
+  vault) and Agenta uses that key on every call. **On Agenta cloud, `self_managed` is not
+  available at all** — cloud runners have no subscription of their own, so cloud always means
+  `agenta`, and you need the user's provider API key. On a self-hosted instance, either mode
+  can work, so ask which one applies: if the runner has its own Claude Code / Codex
+  subscription, use `self_managed` and skip the provider key question entirely; otherwise use
+  `agenta` and ask for the provider (`anthropic`, for the default `claude` harness — see the
+  coupling note below) and point them to that provider's key page.
 - Then offer to set it up for them, either way they prefer:
   - **Write it for them:** create a `.env` file in the working directory with
     `AGENTA_API_KEY=...` (and `AGENTA_HOST=...` if self-hosting). `lib.sh` picks up a local
@@ -105,10 +109,13 @@ entries, skill entries, and the fields that 500 if misplaced — read `reference
 5. **Create and test in one shot:** `bash scripts/build.sh <config> <slug> "<test message>"`.
    Read the OUTPUT and RESOLVED lines. RESOLVED must show `harness=claude model=sonnet` and
    the `connection` mode you configured (`self_managed` or `agenta`).
-6. **If it needs a trigger**, create it against the variant id: a schedule with
-   `bash scripts/create-schedule.sh`, an event subscription with
-   `bash scripts/create-subscription.sh` (only after `discover-triggers.sh` and a `ready`
-   connection). Confirm with `bash scripts/triggers.sh schedules` (or `subscriptions`).
+6. **If it needs a trigger**, create it against the variant id AND the revision id (both
+   printed by `create-agent.sh` / `build.sh`) — a schedule with `bash scripts/create-schedule.sh`,
+   an event subscription with `bash scripts/create-subscription.sh` (only after
+   `discover-triggers.sh` and a `ready` connection). Passing the revision id is required: without
+   it the trigger has no bound version to run, which the Agenta UI treats as an error. Pass the
+   literal word `latest` in place of a revision id if you only have the variant id at hand.
+   Confirm with `bash scripts/triggers.sh schedules` (or `subscriptions`).
 7. **Report** in a short bullet list: what you built, the artifact ids, what you tested, the
    result, and anything that needs the user.
 
@@ -142,10 +149,14 @@ endpoints and load credentials themselves — you never handle the API key.
 - `discover-triggers.sh "<event>" ...` — find event triggers (for subscriptions only).
 - `update-agent.sh <variant_id> <config.json> [message]` — commit a new config to an EXISTING
   agent. Prefer this over archive-and-recreate: the slug, the ids, and any triggers survive.
-- `create-schedule.sh <variant_id> "<cron UTC>" <event_key> [name] [inputs_json]` — cron trigger.
-- `create-subscription.sh <variant_id> <event_key> <connection> [name] [trigger_config_json]
-  [inputs_json]` — event trigger. The connection (id or slug) must be `ready` first;
-  verify actual fires with `triggers.sh deliveries`.
+- `create-schedule.sh <variant_id> <revision_id> "<cron UTC>" <event_key> [name] [inputs_json]`
+  — cron trigger. The revision id (from `create-agent.sh` / `build.sh`) pins which committed
+  version runs; omitting it leaves the schedule with no bound revision. Pass `latest` instead
+  of a real id to have the script look up the variant's current HEAD revision for you.
+- `create-subscription.sh <variant_id> <revision_id> <event_key> <connection> [name]
+  [trigger_config_json] [inputs_json]` — event trigger. Same revision-id requirement (and
+  `latest` shortcut) as `create-schedule.sh`. The connection (id or slug) must be `ready`
+  first; verify actual fires with `triggers.sh deliveries`.
 - `triggers.sh schedules|subscriptions|deliveries|rm-schedule <id>|rm-subscription <id>`.
 - `check-tools.sh <trace_id> [terminal_tool]` — OPTIONAL fallback. `test-agent.sh` already lists
   the tools a run called (its `TOOLS:` line). Reach for this only to confirm a gated WRITE
@@ -180,6 +191,11 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
   before calling the API — treat that rejection as a config bug to fix, never as a reason to
   retry with different values. `llm.connection.mode` is the one field in this block you DO
   choose (see the credentials step): `self_managed` or `agenta`.
+- **A trigger needs the revision id, not just the variant id.** `create-schedule.sh` and
+  `create-subscription.sh` both take `<variant_id> <revision_id> ...` — pass both (printed by
+  `create-agent.sh` / `build.sh`), or pass `latest` in place of the revision id if you only have
+  the variant id at hand. Omitting the revision id creates a trigger with no bound version,
+  which the Agenta UI treats as an error ("Which version runs?" required, unset).
 - **Fewest calls.** A no-tools agent is exactly two actions: write the config, run `build.sh`.
   Don't re-list, don't re-verify facts already given here, don't re-read the schema.
 - **Test before you declare done.** A claim with no `build.sh` / `test-agent.sh` behind it does
@@ -202,6 +218,15 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
   asked for**, and treat the per-integration `CONNECTIONS:` block (not the headline `READY`
   line) as the source of truth. If the match looks off, re-word the fragment or pick from the
   alternatives — a search for "new telegram message" can return a Slack event the same way.
+  For `discover-triggers.sh` specifically, a right *integration* is not enough — the keyword
+  match can land on the wrong *event within that integration* (e.g. "new github issue opened"
+  matching a `GITHUB_ARTIFACT_CREATED_TRIGGER` event purely on the shared word "created", while
+  the connection still reports `ready`). Always read the `fires_on` line the script prints for
+  the MATCHED event, and the ALTERNATIVES block, before wiring anything into
+  `create-subscription.sh` — a plausible-looking `event_key` with the right integration and a
+  `ready` connection is not proof it fires on what you asked for. If nothing in MATCHED or
+  ALTERNATIVES actually corresponds to the requested event, **stop and tell the user this
+  integration doesn't support that trigger yet** — do not wire up the closest keyword hit.
 - **Change an existing agent by committing, not recreating.** `update-agent.sh <variant_id>
   <config.json>` commits a new revision to the same app; the slug, the ids, and any schedules
   or subscriptions keep working. Archive-and-recreate loses all of them. Re-test after the

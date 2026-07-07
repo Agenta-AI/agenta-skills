@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Create an event subscription that runs a given agent variant when a provider event
+# Create an event subscription that runs a given agent revision when a provider event
 # fires (wraps create_subscription, POST /api/triggers/subscriptions/).
 #
-# Usage: create-subscription.sh <variant_id> <event_key> <connection> [name] [trigger_config_json] [inputs_json]
+# Usage: create-subscription.sh <variant_id> <revision_id> <event_key> <connection> [name] [trigger_config_json] [inputs_json]
 #   <variant_id>   the agent variant to run on each event (from create-agent.sh / build.sh)
+#   <revision_id>  from create-agent.sh / build.sh (or update-agent.sh after a change) — pins
+#                  which committed revision the subscription runs. Without this, the
+#                  subscription has no bound revision at all, same gap as an unpinned schedule.
+#                  Pass the literal word "latest" to have this script look up the variant's
+#                  current HEAD revision for you.
 #   <event_key>    the provider event key printed by discover-triggers.sh
 #   <connection>   the event source connection: its id or its slug (discover-triggers.sh
 #                  prints the state; scripts/extras/list-connections.sh prints ids)
@@ -15,14 +20,20 @@
 # The connection MUST be `ready` before you create the subscription — needs_auth means
 # stop and ask the user to connect it first. A created subscription proves nothing ran:
 # verify actual fires with `bash scripts/triggers.sh deliveries`.
+# If you later commit a new revision with update-agent.sh, re-create the subscription (or
+# the equivalent update call) so it points at the new revision_id — it does not follow
+# automatically.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-VARIANT="${1:?usage: create-subscription.sh <variant_id> <event_key> <connection> [name] [trigger_config_json] [inputs_json]}"
-EVENT_KEY="${2:?event_key required}"
-CONNECTION="${3:?connection id or slug required}"
-NAME="${4:-$EVENT_KEY}"
-TRIGGER_CONFIG="${5:-}"
-INPUTS="${6:-}"
+VARIANT="${1:?usage: create-subscription.sh <variant_id> <revision_id> <event_key> <connection> [name] [trigger_config_json] [inputs_json]}"
+REVISION_ARG="${2:?usage: create-subscription.sh <variant_id> <revision_id> <event_key> <connection> [name] [trigger_config_json] [inputs_json]}"
+EVENT_KEY="${3:?event_key required}"
+CONNECTION="${4:?connection id or slug required}"
+NAME="${5:-$EVENT_KEY}"
+TRIGGER_CONFIG="${6:-}"
+INPUTS="${7:-}"
+
+REVISION="$(resolve_revision_id "$VARIANT" "$REVISION_ARG")" || exit 1
 
 # The endpoint takes the connection id; accept a slug and resolve it.
 CONNS="$(agenta_post "/api/triggers/connections/query" '{}')"
@@ -37,8 +48,8 @@ if [[ -z "$CONN_ID" ]]; then
   exit 1
 fi
 
-DATA="$(jq -n --arg ek "$EVENT_KEY" --arg vid "$VARIANT" \
-  '{event_key:$ek, references:{workflow_variant:{id:$vid}}}')"
+DATA="$(jq -n --arg ek "$EVENT_KEY" --arg vid "$VARIANT" --arg rid "$REVISION" \
+  '{event_key:$ek, references:{workflow_variant:{id:$vid}, workflow_revision:{id:$rid}}}')"
 if [[ -n "$TRIGGER_CONFIG" ]]; then
   DATA="$(jq --argjson tc "$TRIGGER_CONFIG" '. + {trigger_config:$tc}' <<<"$DATA")"
 fi

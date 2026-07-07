@@ -5,12 +5,12 @@
 #
 # Credentials (set by you before running any script):
 #   AGENTA_API_KEY   required. From your Agenta project settings (API keys).
-#   AGENTA_HOST      optional. Defaults to Agenta cloud. Set it only if self-hosting.
-#
-# AGENTA_HOST, not AGENTA_API_URL: these scripts curl the public REST API directly from
-# outside Agenta's infra, the same way the SDK derives its own api_url (host + "/api").
-# AGENTA_API_URL is a different, internal override for a workflow running INSIDE Agenta's
-# infra that needs a different internal address than the public host. Not relevant here.
+#   AGENTA_API_URL   optional. The full API URL, e.g. https://eu.cloud.agenta.ai/api or
+#                    http://localhost/api. Set it if self-hosting or on a non-default cloud
+#                    region. Defaults to https://cloud.agenta.ai/api.
+#   AGENTA_HOST      optional, legacy fallback. A bare host (no /api suffix), e.g.
+#                    https://your-domain. Only used to derive the API URL when
+#                    AGENTA_API_URL is not set. Prefer AGENTA_API_URL.
 #
 # Precedence: values already in the environment win. If AGENTA_API_KEY is not in the
 # environment, the kit falls back to a .env file (AGENTA_ENV_FILE, then ./.env, then a
@@ -29,14 +29,23 @@ if [ -z "${AGENTA_API_KEY:-}" ]; then
   done
 fi
 
-# Cloud is the default. Self-hosted users set AGENTA_HOST to their own domain.
-: "${AGENTA_HOST:=https://cloud.agenta.ai}"
+# AGENTA_API_URL is the preferred variable and already includes /api (e.g.
+# https://eu.cloud.agenta.ai/api). AGENTA_HOST is a legacy fallback, a bare host with no
+# /api suffix, only consulted when AGENTA_API_URL is not set. Every call site below still
+# builds its own /api/... or /services/... path, so normalize either input down to a bare
+# host in AGENTA_HOST for internal use — that keeps every other script in this kit unchanged.
+if [ -n "${AGENTA_API_URL:-}" ]; then
+  AGENTA_HOST="${AGENTA_API_URL%/}"
+  AGENTA_HOST="${AGENTA_HOST%/api}"
+else
+  : "${AGENTA_HOST:=https://cloud.agenta.ai}"
+fi
 
 if [ -z "${AGENTA_API_KEY:-}" ]; then
   {
     echo "AGENTA_API_KEY is not set."
     echo "Get a key from your Agenta project settings (API keys page), then set it one of two ways:"
-    echo "  export AGENTA_API_KEY=...        # and AGENTA_HOST=https://your-domain if self-hosting"
+    echo "  export AGENTA_API_KEY=...        # and AGENTA_API_URL=https://your-domain/api if self-hosting"
     echo "  echo 'AGENTA_API_KEY=...' > .env # a .env in this directory is picked up automatically"
   } >&2
   exit 1

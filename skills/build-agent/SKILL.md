@@ -28,34 +28,33 @@ fallback; prefer what is written here.
 
 Do these two things once, before any build.
 
-**1. Credentials.** The scripts need `AGENTA_API_KEY`, and `AGENTA_HOST` only if the user
-self-hosts (it defaults to Agenta cloud, `https://cloud.agenta.ai`).
+**1. Credentials.** The scripts need `AGENTA_API_KEY`, and `AGENTA_API_URL` only if the user
+self-hosts or is on a non-default cloud region (it defaults to `https://cloud.agenta.ai/api`).
 
-`AGENTA_HOST` is the right variable here, not `AGENTA_API_URL`. These scripts call the
-public REST API directly from outside Agenta's own infrastructure (your machine, CI, and so
-on) the same way the Agenta SDK derives its own API URL: host + `/api`. `AGENTA_API_URL` is a
-different, internal override the SDK uses when a workflow it runs *inside* Agenta's
-infrastructure needs to reach the API at a different address than the public host (for
-example, docker-internal networking on a self-hosted install) — it does not apply to a caller
-hitting the public REST API from outside, which is all this skill ever does. Do not swap
-`AGENTA_HOST` for `AGENTA_API_URL` here.
+`AGENTA_API_URL` is the right variable, not `AGENTA_HOST`. It is the full API URL, already
+including `/api` (e.g. `https://eu.cloud.agenta.ai/api`, or `http://localhost/api` for a
+local self-hosted install) — this matches how the Agenta SDK itself resolves the backend:
+`AGENTA_API_URL` takes priority whenever it is set. `AGENTA_HOST` (a bare host, no `/api`
+suffix) is only a legacy fallback the SDK derives an API URL from when `AGENTA_API_URL` is
+not set — prefer `AGENTA_API_URL` for anything new.
 
 - Ask the user for their API key. Point them to it: the **API keys** page in their Agenta
-  project settings (on cloud, under `https://cloud.agenta.ai`). Ask for the host URL only if
-  they self-host, in which case it is their own Agenta domain.
+  project settings (on cloud, under `https://cloud.agenta.ai`). Ask for the API URL only if
+  they self-host or use a non-default cloud region, in which case it is their own Agenta
+  domain plus `/api`.
 - Then offer to set it up for them, either way they prefer:
   - **Write it for them:** create a `.env` file in the working directory with
-    `AGENTA_API_KEY=...` (and `AGENTA_HOST=...` if self-hosting). `lib.sh` picks up a local
-    `.env` automatically.
+    `AGENTA_API_KEY=...` (and `AGENTA_API_URL=https://your-domain/api` if self-hosting).
+    `lib.sh` picks up a local `.env` automatically.
   - **Hand them a block to paste:** give them the lines to `export`, or the `.env` contents
     to create themselves.
 - Never print or commit the key. Add `.env` to `.gitignore` if the directory is a repo.
 - **`https://cloud.agenta.ai` above is a one-time example for INITIAL setup only.** If a
   later runtime error tells you to add a credential to the project vault (or anything else
-  that means "go to your Agenta project"), point the user at their actual configured
-  `$AGENTA_HOST` — read it from the environment/`.env`, don't repeat the cloud URL from this
-  section by habit. A self-hosted user sent to `cloud.agenta.ai` for a vault that lives on
-  their own domain will not find what you told them to look for.
+  that means "go to your Agenta project"), point the user at their actual configured API
+  host — read it from `AGENTA_API_URL`/`.env`, don't repeat the cloud URL from this section
+  by habit. A self-hosted user sent to `cloud.agenta.ai` for a vault that lives on their own
+  domain will not find what you told them to look for.
 
 **2. Prerequisites.** Run `bash scripts/check-prereqs.sh`. It verifies `bash`, `curl`, and
 `jq` are installed. On a miss it prints the exact install command for the user's platform;
@@ -195,11 +194,12 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
 - **Crons are UTC, five fields, one-minute floor.** Convert the user's local time yourself.
 - **needs_auth means stop.** If a needed connection is not `ready`, stop and ask the user to
   connect it. That is the whole job for that step.
-- **Remediation guidance always uses the user's actual `$AGENTA_HOST`, never a hardcoded
-  cloud URL.** The `https://cloud.agenta.ai` example in the credentials section above is for
-  *initial* setup only. If a later runtime failure calls for telling the user to go add
-  something in their Agenta project (a vault key, a setting), point them at their actual
-  configured host — a self-hosted user sent to the cloud URL will look in the wrong place.
+- **Remediation guidance always uses the user's actual configured API host, never a
+  hardcoded cloud URL.** The `https://cloud.agenta.ai` example in the credentials section
+  above is for *initial* setup only. If a later runtime failure calls for telling the user to
+  go add something in their Agenta project (a vault key, a setting), point them at their
+  actual `AGENTA_API_URL` (or `AGENTA_HOST` under the legacy fallback) — a self-hosted user
+  sent to the cloud URL will look in the wrong place.
 - **Discovery is a search, not an oracle.** `discover-tools.sh` / `discover-triggers.sh` return
   high-recall best guesses over the live catalog. The matched **connection state** is reliable;
   the matched **integration and action** are not always right. A search matches on words: "save

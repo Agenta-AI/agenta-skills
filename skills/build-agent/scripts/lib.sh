@@ -8,9 +8,6 @@
 #   AGENTA_API_URL   optional. The full API URL, e.g. https://eu.cloud.agenta.ai/api or
 #                    http://localhost/api. Set it if self-hosting or on a non-default cloud
 #                    region. Defaults to https://cloud.agenta.ai/api.
-#   AGENTA_HOST      optional, legacy fallback. A bare host (no /api suffix), e.g.
-#                    https://your-domain. Only used to derive the API URL when
-#                    AGENTA_API_URL is not set. Prefer AGENTA_API_URL.
 #
 # Precedence: values already in the environment win. If AGENTA_API_KEY is not in the
 # environment, the kit falls back to a .env file (AGENTA_ENV_FILE, then ./.env, then a
@@ -29,17 +26,12 @@ if [ -z "${AGENTA_API_KEY:-}" ]; then
   done
 fi
 
-# AGENTA_API_URL is the preferred variable and already includes /api (e.g.
-# https://eu.cloud.agenta.ai/api). AGENTA_HOST is a legacy fallback, a bare host with no
-# /api suffix, only consulted when AGENTA_API_URL is not set. Every call site below still
-# builds its own /api/... or /services/... path, so normalize either input down to a bare
-# host in AGENTA_HOST for internal use — that keeps every other script in this kit unchanged.
-if [ -n "${AGENTA_API_URL:-}" ]; then
-  AGENTA_HOST="${AGENTA_API_URL%/}"
-  AGENTA_HOST="${AGENTA_HOST%/api}"
-else
-  : "${AGENTA_HOST:=https://cloud.agenta.ai}"
-fi
+# Cloud is the default. AGENTA_API_URL already includes /api (e.g. https://eu.cloud.agenta.ai/api).
+: "${AGENTA_API_URL:=https://cloud.agenta.ai/api}"
+_API_BASE="${AGENTA_API_URL%/}"
+# Every call site below builds its own /api/... or /services/... path, so also keep a bare
+# root (no /api suffix) for the one call site that needs a non-/api path.
+_API_ROOT="${_API_BASE%/api}"
 
 if [ -z "${AGENTA_API_KEY:-}" ]; then
   {
@@ -53,9 +45,9 @@ fi
 
 _AUTH=(-H "Authorization: ApiKey $AGENTA_API_KEY" -H "Content-Type: application/json")
 
-agenta_post()   { curl -s -X POST   "$AGENTA_HOST$1" "${_AUTH[@]}" -d "$2"; }
-agenta_get()    { curl -s           "$AGENTA_HOST$1" "${_AUTH[@]}"; }
-agenta_delete() { curl -s -X DELETE "$AGENTA_HOST$1" "${_AUTH[@]}"; }
+agenta_post()   { curl -s -X POST   "$_API_ROOT$1" "${_AUTH[@]}" -d "$2"; }
+agenta_get()    { curl -s           "$_API_ROOT$1" "${_AUTH[@]}"; }
+agenta_delete() { curl -s -X DELETE "$_API_ROOT$1" "${_AUTH[@]}"; }
 
 # Resolves a <revision_id> argument for create-schedule.sh / create-subscription.sh.
 # A real revision id (from create-agent.sh / build.sh / update-agent.sh) passes straight

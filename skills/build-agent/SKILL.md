@@ -31,12 +31,9 @@ Do these two things once, before any build.
 **1. Credentials.** The scripts need `AGENTA_API_KEY`, and `AGENTA_API_URL` only if the user
 self-hosts or is on a non-default cloud region (it defaults to `https://cloud.agenta.ai/api`).
 
-`AGENTA_API_URL` is the right variable, not `AGENTA_HOST`. It is the full API URL, already
-including `/api` (e.g. `https://eu.cloud.agenta.ai/api`, or `http://localhost/api` for a
-local self-hosted install) — this matches how the Agenta SDK itself resolves the backend:
-`AGENTA_API_URL` takes priority whenever it is set. `AGENTA_HOST` (a bare host, no `/api`
-suffix) is only a legacy fallback the SDK derives an API URL from when `AGENTA_API_URL` is
-not set — prefer `AGENTA_API_URL` for anything new.
+`AGENTA_API_URL` is the full API URL, already including `/api` (e.g.
+`https://eu.cloud.agenta.ai/api`, or `http://localhost/api` for a local self-hosted install)
+— this matches how the Agenta SDK itself resolves the backend.
 
 - Ask the user for their API key. Point them to it: the **API keys** page in their Agenta
   project settings (on cloud, under `https://cloud.agenta.ai`). Ask for the API URL only if
@@ -198,7 +195,7 @@ Keep to the loop above for a simple agent. Read one of these only when the task 
   hardcoded cloud URL.** The `https://cloud.agenta.ai` example in the credentials section
   above is for *initial* setup only. If a later runtime failure calls for telling the user to
   go add something in their Agenta project (a vault key, a setting), point them at their
-  actual `AGENTA_API_URL` (or `AGENTA_HOST` under the legacy fallback) — a self-hosted user
+  actual `AGENTA_API_URL` — a self-hosted user
   sent to the cloud URL will look in the wrong place.
 - **Discovery is a search, not an oracle.** `discover-tools.sh` / `discover-triggers.sh` return
   high-recall best guesses over the live catalog. The matched **connection state** is reliable;

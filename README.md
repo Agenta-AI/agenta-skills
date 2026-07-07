@@ -48,10 +48,11 @@ npx skills update
 
 The skills call the Agenta API and need one or two values:
 
-- `AGENTA_API_KEY` — **required.** Get it from your Agenta project settings (the API keys
-  page). On cloud that is under [cloud.agenta.ai](https://cloud.agenta.ai).
+- `AGENTA_API_KEY` — **required.** Get it from `<your-host>/settings?tab=apiKeys`, for
+  example [cloud.agenta.ai/settings?tab=apiKeys](https://cloud.agenta.ai/settings?tab=apiKeys).
 - `AGENTA_HOST` — **optional.** Defaults to Agenta cloud (`https://cloud.agenta.ai`). Set it
-  only if you self-host, to your own Agenta domain.
+  to `https://eu.cloud.agenta.ai` or `https://us.cloud.agenta.ai` for the regional clouds, or
+  to your own domain if you self-host.
 
 The skill will ask you for these on first run and can write a local `.env` for you, or hand
 you a block to paste. Set them either as environment variables or in a `.env` file in your

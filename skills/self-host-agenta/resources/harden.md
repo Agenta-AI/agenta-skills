@@ -21,7 +21,12 @@ override `POSTGRES_PORT` / `TRAEFIK_UI_PORT`, confirm they still bind to `127.0.
 `0.0.0.0`. Verify with the port check in test.md (step 7).
 
 The bundled SeaweedFS object store publishes on `127.0.0.1:${AGENTA_STORE_PORT:-8333}` by
-the same loopback default; leave it there — nothing outside the Compose network needs it.
+the same loopback default. Leave it there when agents run in the local sandbox; nothing
+outside the Compose network needs it. A Daytona sandbox is the exception. It runs in the
+cloud and reaches the store over the public internet, so a Daytona deployment has to publish
+the store on its own subdomain through an opt-in traefik router (`AGENTA_STORE_TRAEFIK_ENABLE`
+plus `AGENTA_STORE_DOMAIN`), which is a hostname-scoped route, not a `0.0.0.0` bind of the raw
+port. Without it, agent files are lost silently (troubleshoot.md entry 9).
 
 ## 2. Change the default database credentials
 

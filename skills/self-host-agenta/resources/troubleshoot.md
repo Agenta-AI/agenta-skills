@@ -171,3 +171,53 @@ directly, use the default filename, or set `ENV_FILE` — export it, or put
 export ENV_FILE=.env.oss.gh.local
 docker compose -f <compose-file> --env-file "$ENV_FILE" up -d
 ```
+
+## 9. Daytona runs lose their files, and the runner logs `mount degraded`
+
+**Symptom.** With the Daytona sandbox, an agent's working directory is empty on the next
+turn, files it wrote earlier are gone, and the run itself does not fail. The only trace is a
+`mount degraded` line in the runner logs.
+
+**Cause.** A Daytona sandbox runs in the cloud and reaches the durable store over the public
+internet, using the endpoint baked into the signed mount credentials
+(`AGENTA_STORE_ENDPOINT_URL`). The bundled store defaults to `http://seaweedfs:8333`, a
+Compose service name the internet cannot resolve, so the sandbox cannot mount it. The runner
+skips the mount instead of failing the turn, which is why the loss is silent. Local-sandbox
+runs never hit this, because they reach the store from inside the Compose network.
+
+**Fix.** Publish the store on a public endpoint and point `AGENTA_STORE_ENDPOINT_URL` at it.
+The `gh` stacks can route the bundled store through traefik on its own subdomain; this is off
+by default. Pick a hostname, add a DNS record for it, and set:
+
+```bash
+AGENTA_STORE_TRAEFIK_ENABLE=true
+AGENTA_STORE_DOMAIN=store.example.com
+AGENTA_STORE_ENDPOINT_URL=https://store.example.com
+```
+
+Recreate the stack and rerun. A healthy session logs `remote mounted ... (verified alive)`
+instead of `mount degraded`, and the file survives the next turn. An external S3-compatible
+store (AWS S3, Cloudflare R2, MinIO) already reachable from the internet works too. Full
+recipe, with the TLS and external-S3 variants, in step 4 of the Daytona doc:
+https://docs.agenta.ai/self-host/agent-execution/daytona .
+
+## 10. `The agent could not enforce its permission policy` and the run is stopped
+
+**Symptom.** On the Pi harness, a run stops with an error that begins
+`The agent could not enforce its permission policy: the permission component failed to
+install`. It states that the run was stopped so no tool ran outside your policy, and asks you
+to make the runner's Pi agent directory writable or rebuild and republish the runner image.
+
+**Cause.** Pi enforces a permission policy through a small component the runner installs into
+its Pi agent directory (`PI_CODING_AGENT_DIR`, default `/pi-agent`) at the start of each run.
+If that directory is not writable by the `node` user the runner runs as, the install fails.
+Rather than continue with the policy silently disabled, the run now stops. A policy that
+allows every tool does not need the component and is unaffected. This bites an older or
+hand-built runner image whose Pi agent directory `node` cannot write.
+
+**Fix.** Use the current published runner image, which creates `/pi-agent` writable by the
+`node` user, so a fresh pull needs no action. If you build the runner image yourself, create
+that directory and grant `node` write access, then rebuild and republish. Managed-key and
+no-key local runs also fall back to a per-run temporary directory the runtime user owns; the
+gotcha remains for a subscription run, which must use the operator's mounted Pi agent
+directory.

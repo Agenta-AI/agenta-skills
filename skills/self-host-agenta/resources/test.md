@@ -76,7 +76,9 @@ configured` or a file that vanishes between runs means the store is missing or t
   run in-container, with no `/dev/fuse` or CLI-not-found error.
 - **Daytona:** a healthy run creates a sandbox and tears it down. The sandbox count in your
   Daytona dashboard should return to 0 after the run finishes; a count stuck above 0 means
-  sandboxes are leaking. Smoke test: https://docs.agenta.ai/self-host/agent-execution/daytona .
+  sandboxes are leaking. If files vanish between turns and the runner logs `mount degraded`,
+  the store is not reachable from the cloud sandbox (troubleshoot.md entry 9). Smoke test:
+  https://docs.agenta.ai/self-host/agent-execution/daytona .
 
 ## 7. Remote only: published ports are loopback-bound
 

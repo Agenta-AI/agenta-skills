@@ -13,8 +13,9 @@ reference files.
 | Skill | What it does |
 |---|---|
 | [`build-agent`](skills/build-agent/) | Turn a plain-language request into a working, tested Agenta agent: write one config, run a few scripts, schedule it, verify it. |
+| [`self-host-agenta`](skills/self-host-agenta/) | Router and field guide for self-hosting Agenta with Docker Compose: the four decisions, `run.sh` flags, hardening, troubleshooting, and verification. |
 
-More skills (for example self-hosting Agenta) will land as sibling folders under `skills/`.
+More skills will land as sibling folders under `skills/`.
 
 ## Install
 

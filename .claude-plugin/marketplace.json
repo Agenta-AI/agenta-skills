@@ -15,6 +15,18 @@
       "homepage": "https://docs.agenta.ai",
       "license": "MIT",
       "keywords": ["agenta", "agents", "build", "llm"]
+    },
+    {
+      "name": "self-host-agenta",
+      "source": "./",
+      "strict": false,
+      "skills": ["./skills/self-host-agenta"],
+      "description": "Router and field guide for self-hosting Agenta with Docker Compose: decisions, gotchas, hardening, troubleshooting, verification.",
+      "version": "0.1.0",
+      "author": { "name": "Agenta" },
+      "homepage": "https://docs.agenta.ai/self-host",
+      "license": "MIT",
+      "keywords": ["agenta", "self-host", "docker-compose", "deployment", "operations"]
     }
   ]
 }

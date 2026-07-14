@@ -50,10 +50,27 @@ This is what "working" means. Do it through the studio UI (or the API):
    run finishes without error.
 
 If model auth fails, revisit decision 2 (managed key vs subscription; subscription has the
-uid-1000 mount gotcha, troubleshoot.md entry 3). To build the agent itself, the
-`build-agent` skill drives this over the API.
+uid-1000 mount gotcha, troubleshoot.md entry 3). If a run fails with a `401` from the runner
+or `AGENTA_RUNNER_TOKEN is required`, the token is unset or mismatched (troubleshoot.md
+entry 6). To build the agent itself, the `build-agent` skill drives this over the API.
 
-## 5. Confirm the run executed where you chose
+## 5. Object store healthy — durable mounts persist
+
+Agent/session mounts are signed against the bundled SeaweedFS object store, which the `gh`
+Compose files run as the `seaweedfs` service and the `api` depends on. Confirm it is up and
+answering on its loopback-bound port:
+
+```bash
+docker compose ps seaweedfs                 # State should be "healthy"
+curl -fsS http://127.0.0.1:8333 >/dev/null && echo OK   # adjust AGENTA_STORE_PORT if set
+```
+
+Then prove persistence end to end: run the agent once so it writes a session file, then run
+it again and confirm the file is still there. A `503 Mount storage backend is not
+configured` or a file that vanishes between runs means the store is missing or the
+`AGENTA_STORE_*` vars are blank (troubleshoot.md entry 7).
+
+## 6. Confirm the run executed where you chose
 
 - **Local sandbox:** the run should complete and the runner logs should show it handled the
   run in-container, with no `/dev/fuse` or CLI-not-found error.
@@ -61,7 +78,7 @@ uid-1000 mount gotcha, troubleshoot.md entry 3). To build the agent itself, the
   Daytona dashboard should return to 0 after the run finishes; a count stuck above 0 means
   sandboxes are leaking. Smoke test: https://docs.agenta.ai/self-host/agent-execution/daytona .
 
-## 6. Remote only: published ports are loopback-bound
+## 7. Remote only: published ports are loopback-bound
 
 On a public host, confirm Postgres and the Traefik dashboard are not on the internet:
 

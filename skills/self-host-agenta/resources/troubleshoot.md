@@ -102,3 +102,72 @@ POSTGRES_URI_SUPERTOKENS=postgresql://username:password@postgres:5432/agenta_oss
 
 Match the credentials and DB name to your deployment. This is a known OSS gap; treat it as
 pending until the fallback lands upstream.
+
+## 6. `AGENTA_RUNNER_TOKEN is required` — runner won't boot, or runs fail with 401
+
+**Symptom.** One of: the stack refuses to start with
+`AGENTA_RUNNER_TOKEN is required`; the runner container exits at boot logging
+`AGENTA_RUNNER_TOKEN is required. Generate a secret ...`; or an agent run fails with
+`AGENTA_RUNNER_TOKEN is required to call the agent runner ...` or an opaque `401` from the
+runner.
+
+**Cause.** The runner token is now **mandatory**. Both the `gh` and `dev` Compose files
+guard it as `${AGENTA_RUNNER_TOKEN:?...}`, the runner refuses to boot without it, and the
+services→runner call sends it as a bearer token that the runner rejects with `401` if it
+does not match. So the token is either blank (won't boot) or set to a **different** value on
+the two sides (401 on every run).
+
+**Fix.** Set the **same** non-empty value on both the `services` and `runner` containers —
+they read the one `AGENTA_RUNNER_TOKEN`. The example env files ship
+`AGENTA_RUNNER_TOKEN=replace-me`; replace it and keep both sides equal. Generate one with:
+
+```bash
+openssl rand -hex 32
+```
+
+## 7. Durable mounts fail with `503 Mount storage backend is not configured`
+
+**Symptom.** An agent run that reads or writes a session/mounted file fails, the mounts API
+returns `503` with `Mount storage backend is not configured`, or files silently do not
+persist across runs.
+
+**Cause.** Mount signing is backed by an object store. The `gh` Compose files now bundle a
+SeaweedFS `seaweedfs` service and the `api` `depends_on` it, so this works out of the box —
+but a custom env file that blanks the `AGENTA_STORE_*` vars, or an older stack from before
+the store was bundled, leaves the API with no store to sign against.
+
+**Fix.** Keep the store vars pointing at the bundled service and non-empty:
+
+```bash
+AGENTA_STORE_ENDPOINT_URL=http://seaweedfs:8333
+AGENTA_STORE_BUCKET=agenta-store
+AGENTA_STORE_ACCESS_KEY=...      # example ships replace-me
+AGENTA_STORE_SECRET_KEY=...      # example ships replace-me
+AGENTA_STORE_SIGNING_KEY=...     # example ships replace-me; openssl rand -base64 32
+```
+
+Confirm the `seaweedfs` container is healthy (test.md step 5). To use an external
+S3-compatible store (AWS S3, Cloudflare R2, MinIO) instead, point those vars at it and clear
+`AGENTA_STORE_SIGNING_KEY` (its presence selects the bundled-SeaweedFS signing path). Store
+options are in the configuration reference:
+https://docs.agenta.ai/self-host/configuration#store-durable-object-store .
+
+## 8. `docker compose --env-file <name>` silently loads the default env file
+
+**Symptom.** You run `docker compose` directly (not `run.sh`) with a non-default env file,
+e.g. `docker compose ... --env-file .env.oss.gh.local up`, and the stack behaves as if it
+read a different file: wrong ports, `/api` 404s, or missing runner/store values.
+
+**Cause.** The Compose services load their env via `env_file: ${ENV_FILE:-<default>}`.
+`--env-file` only feeds variable **interpolation**; it does **not** set the `ENV_FILE`
+variable, so `${ENV_FILE:-<default>}` falls back to the committed default file — not the one
+you passed.
+
+**Fix.** Prefer `run.sh`, which exports `ENV_FILE` for you. If you must drive Compose
+directly, use the default filename, or set `ENV_FILE` — export it, or put
+`ENV_FILE=<path>` inside the env file you pass to `--env-file`:
+
+```bash
+export ENV_FILE=.env.oss.gh.local
+docker compose -f <compose-file> --env-file "$ENV_FILE" up -d
+```

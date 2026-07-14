@@ -18,7 +18,10 @@ The published Compose ports for Postgres and the Traefik dashboard are bound to 
 **As of PR #5308 this loopback bind is the default.** Before that, these ports bound to
 `0.0.0.0` and were reachable from the public internet. If you run an older stack, or if you
 override `POSTGRES_PORT` / `TRAEFIK_UI_PORT`, confirm they still bind to `127.0.0.1` and not
-`0.0.0.0`. Verify with the port check in test.md (step 6).
+`0.0.0.0`. Verify with the port check in test.md (step 7).
+
+The bundled SeaweedFS object store publishes on `127.0.0.1:${AGENTA_STORE_PORT:-8333}` by
+the same loopback default; leave it there — nothing outside the Compose network needs it.
 
 ## 2. Change the default database credentials
 
@@ -39,3 +42,14 @@ openssl rand -hex 32   # run once per key
 Set the results as `AGENTA_AUTH_KEY` and `AGENTA_CRYPT_KEY` in your env file. `AGENTA_CRYPT_KEY`
 encrypts stored secrets, so changing it later invalidates anything already encrypted with the
 old value. Generate it once, before first use.
+
+The example env files ship the same `replace-me` placeholder for several more secrets. Replace
+each before exposing the host:
+
+- `AGENTA_RUNNER_TOKEN` — the shared token that gates the runner. **Required** even locally
+  (the runner refuses to boot without it), and it must be the **same** value on the `services`
+  and `runner` containers. `openssl rand -hex 32`. (troubleshoot.md entry 6.)
+- `AGENTA_STORE_ACCESS_KEY` / `AGENTA_STORE_SECRET_KEY` — credentials for the bundled object
+  store. `AGENTA_STORE_SIGNING_KEY` — the mount-signing key; generate with
+  `openssl rand -base64 32`. The `seaweedfs` service and the api read these same values, so a
+  shared replacement still works out of the box.

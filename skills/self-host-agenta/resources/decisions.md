@@ -39,7 +39,10 @@ This is the safety decision, and it is central: the whole point is running an ag
   (`agenta-agent-sandbox-v1`). Use it whenever more than one person can start runs. How-to:
   https://docs.agenta.ai/self-host/agent-execution/daytona .
 
-What it changes: `AGENTA_RUNNER_DAYTONA_*` variables and the snapshot. Full trade-off:
+What it changes: `AGENTA_RUNNER_DAYTONA_*` variables and the snapshot. Daytona also needs
+the durable store published on a public endpoint, since the cloud sandbox reaches it over the
+internet; a store bound to loopback leaves agent files lost silently (troubleshoot.md entry
+9). Full trade-off:
 https://docs.agenta.ai/self-host/agent-execution/sandbox-isolation-and-security .
 
 Rule: single trusted operator -> local is fine. Anyone else can reach it -> Daytona.

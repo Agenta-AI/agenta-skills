@@ -1,21 +1,21 @@
 # Troubleshooting
 
-Field-verified failures, keyed to the exact error text you will see. Each entry is
+Field-verified OSS failures, keyed to the exact error text. Each entry is
 symptom -> cause -> fix. If your symptom is not here, the configuration reference
 (https://docs.agenta.ai/self-host/configuration) and networking doc
 (https://docs.agenta.ai/self-host/infrastructure/networking) are the next stops.
 
 ## 1. `could not find runner CLI at /app/runner/src/cli.ts`
 
-**Symptom.** An agent run fails and the Services logs show a message like
+**Symptom.** An agent run fails and the API logs show a message like
 `<backend> could not find runner CLI at /app/runner/src/cli.ts`.
 
-**Cause.** The Services API did not get a runner URL, so the SDK adapter fell back to
-launching the runner as a subprocess and looked for its CLI on disk. The Services image
-does not contain the runner, so the CLI is not there. This means `AGENTA_RUNNER_INTERNAL_URL`
-is unset or was overridden to empty in your env file.
+**Cause.** The API did not get a runner URL, so the SDK adapter fell back to launching the
+runner as a subprocess and looked for its CLI on disk. The API image does not contain the
+runner, so the CLI is not there. This means `AGENTA_RUNNER_INTERNAL_URL` is unset or was
+overridden to empty in your env file.
 
-**Fix.** Point Services at the runner container over HTTP:
+**Fix.** Point the API at the runner container over HTTP:
 
 ```bash
 AGENTA_RUNNER_INTERNAL_URL=http://runner:8765
@@ -23,8 +23,8 @@ AGENTA_RUNNER_INTERNAL_URL=http://runner:8765
 
 The Compose files default this to `http://runner:8765` already, so this bites when a custom
 env file blanks it out. Confirm your env file does not set `AGENTA_RUNNER_INTERNAL_URL=` to
-empty. Runner variables reference:
-https://docs.agenta.ai/self-host/agent-execution/runner-configuration .
+empty. Runner variables are in the configuration reference:
+https://docs.agenta.ai/self-host/configuration .
 
 ## 2. Behind a reverse proxy or Cloudflare, redirects come back as `http://` and drop `/api`
 
@@ -92,8 +92,7 @@ cannot connect to Postgres, and its config shows an empty `POSTGRESQL_CONNECTION
 **Cause.** The OSS `gh` Compose file maps
 `POSTGRESQL_CONNECTION_URI: ${POSTGRES_URI_SUPERTOKENS}` with **no fallback default**, but
 the OSS example env file ships `POSTGRES_URI_SUPERTOKENS` **commented out**. So the variable
-is empty and supertokens gets no connection string. (The EE Compose file has a `:-...`
-fallback, so EE does not hit this.)
+is empty and supertokens gets no connection string.
 
 **Fix.** Uncomment the line in your OSS env file:
 
@@ -101,5 +100,5 @@ fallback, so EE does not hit this.)
 POSTGRES_URI_SUPERTOKENS=postgresql://username:password@postgres:5432/agenta_oss_supertokens
 ```
 
-Match the credentials and DB name to your deployment. This is a pending fix in the OSS
-example / Compose defaults; treat it as a known gap until the fallback lands upstream.
+Match the credentials and DB name to your deployment. This is a known OSS gap; treat it as
+pending until the fallback lands upstream.

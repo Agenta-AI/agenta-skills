@@ -18,7 +18,7 @@ The published Compose ports for Postgres and the Traefik dashboard are bound to 
 **As of PR #5308 this loopback bind is the default.** Before that, these ports bound to
 `0.0.0.0` and were reachable from the public internet. If you run an older stack, or if you
 override `POSTGRES_PORT` / `TRAEFIK_UI_PORT`, confirm they still bind to `127.0.0.1` and not
-`0.0.0.0`. Verify with the port check in verify.md.
+`0.0.0.0`. Verify with the port check in test.md (step 6).
 
 ## 2. Change the default database credentials
 

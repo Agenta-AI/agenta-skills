@@ -1,81 +1,93 @@
 ---
 name: self-host-agenta
-description: Router and field guide for self-hosting Agenta with Docker Compose. Use when a user or agent wants to stand up, expose, harden, or debug a self-hosted Agenta deployment (OSS or EE), or asks "how do I self-host Agenta", "run.sh flags", "my self-host redirects to http", "the runner can't be found", "supertokens won't start". Routes to the public self-host docs as the source of truth and adds the operational knowledge (decision tree, gotchas, hardening, troubleshooting, verification) that the docs do not carry.
+description: Guided setup assistant for self-hosting open-source Agenta and running an agent on it. Use when the user wants to self-host Agenta, set up an Agenta agent on their own machine or server, run an agent locally, or says "help me self-host Agenta", "set up an agent", "self-host and run an agent". Walks the user through the decisions, executes against the OSS self-host docs, and ends with a working, tested agent.
 allowed-tools: Read, Edit, Write, Grep, Glob, Bash
 user-invocable: true
 ---
 
 # Self-host Agenta
 
-A thin router to the public self-host docs, plus the field knowledge that does not live
-there. The docs at **https://docs.agenta.ai/self-host** are the source of truth for every
-procedure. This skill points you at the right page, and carries the decisions, gotchas,
-hardening steps, failure modes, and smoke tests an operator needs on top of them.
+You are helping a user stand up open-source Agenta and get a working agent running on it.
+This is a guided setup, not a reference lookup. Walk them through it and **end with a
+tested, working agent**. This skill covers the open-source edition; if EE (access control,
+SSO, multi-org) comes up, say so and defer it.
 
-Do not paste doc content into answers. Link the slug, then add the operational detail from
-the resource files below.
+The public OSS self-host docs at **https://docs.agenta.ai/self-host** are the source of
+truth for every command. Link the page; do not restate its commands here. You already have
+the repo, its `AGENTS.md`, and these docs. Infer the obvious. Do not re-explain what you can
+read. Be concise.
 
-## Start here: the four decisions
+## Workflow (follow in order)
 
-Every later command follows from four choices. Make them first. Full detail with the exact
-flags is in [resources/decisions.md](resources/decisions.md).
+1. **Understand, then propose a plan before doing anything.** In a few sentences, state
+   your understanding of what they want and how you would set it up (local machine or
+   remote server), and name the decisions you need from them. Do not run commands yet.
 
-1. **Edition** — OSS (`--oss`) or EE (`--ee`). EE adds access control, SSO, orgs.
-2. **Image source** — published images from released main (`--gh`), images built from your
-   working tree (`--gh --local --build`, for a feature branch), or hot-reload dev
-   (`--dev`). Pick `--gh` unless you are running unreleased code.
-3. **Exposure** — plain `IP:port`, a domain with TLS, or a Cloudflare/other tunnel. This
-   decides your URL env vars and whether you harden (see resources/harden.md).
-4. **Who can start runs** — if more than one person can reach the deployment, agents must
-   run in Daytona sandboxes, not locally in the runner container. See the isolation doc.
+2. **Surface the decisions, then ask.** Each decision below gets one line of context and a
+   sensible default. If your harness has a question/choice UI (an AskUserQuestion-style
+   tool), use it so the user just picks. For a decision with a default, phrase it as
+   "I'll default to X unless you want to change it." Do not dump every option as prose.
+   Detail and per-decision doc links: [resources/decisions.md](resources/decisions.md).
 
-## Routing table: "I want to X" -> doc
+3. **Get approval on the plan, then execute.** Follow the OSS docs for the actual commands
+   (the routing table below). Work from a checked-out clone of
+   https://github.com/Agenta-AI/agenta; `run.sh` resolves paths relative to its root.
+
+4. **Test — mandatory, never skipped.** Once the stack is up, prove it works end to end:
+   health check, sign up, create an agent, run a prompt and a tool call, confirm the run
+   completes. If anything fails, troubleshoot and retry. Do not report success until the
+   test passes. Steps: [resources/test.md](resources/test.md).
+
+5. **Offer feedback.** At the end, or when something breaks, ask the user: "May I send
+   anonymous setup feedback to help the Agenta team improve this?" Send only if they agree,
+   and never send secrets. Thank them either way — the team is grateful.
+   How: [resources/send-feedback.md](resources/send-feedback.md).
+
+## The decisions (OSS)
+
+Make these with the user in step 2. Full context and doc links in
+[resources/decisions.md](resources/decisions.md).
+
+- **Where** — local machine (default), or a remote server.
+- **Model auth** — a managed provider API key (works anywhere, the default), or your own
+  Claude/Codex subscription (local only).
+- **Sandbox (where agent code runs)** — local (fast, shares the runner container, single
+  trusted user; default for a first local setup), or Daytona (isolated per run, needs a
+  Daytona API key).
+- **Exposure** — only if remote: plain `IP:port`, or a domain with TLS.
+
+## Routing table: "I want to X" -> OSS doc
 
 | Goal | Page |
 |---|---|
 | First local deploy (port 80 or custom port) | https://docs.agenta.ai/self-host/quick-start |
 | Where to start / what applies to me | https://docs.agenta.ai/self-host/overview |
-| Every environment variable and what it does | https://docs.agenta.ai/self-host/configuration |
+| Every environment variable (incl. runner vars) | https://docs.agenta.ai/self-host/configuration |
 | Network topology, ports, container DNS | https://docs.agenta.ai/self-host/infrastructure/networking |
 | How the services fit together | https://docs.agenta.ai/self-host/infrastructure/architecture |
 | Deploy on a remote server | https://docs.agenta.ai/self-host/guides/deploy-remotely |
 | Put it behind a domain with TLS | https://docs.agenta.ai/self-host/guides/using-ssl |
-| Deploy on Kubernetes (Helm) | https://docs.agenta.ai/self-host/guides/deploy-to-kubernetes |
-| Deploy on Railway | https://docs.agenta.ai/self-host/guides/deploy-on-railway |
-| Understand how a run reaches the runner | https://docs.agenta.ai/self-host/agent-execution/how-agents-run |
-| Run agents with my own Claude/ChatGPT/Pi login | https://docs.agenta.ai/self-host/use-your-own-subscription |
+| How a run reaches the runner | https://docs.agenta.ai/self-host/agent-execution/how-agents-run |
+| Run agents with my own Claude/ChatGPT subscription | https://docs.agenta.ai/self-host/use-your-own-subscription |
 | Run agents in a cloud sandbox (Daytona) | https://docs.agenta.ai/self-host/agent-execution/daytona |
 | Run agents locally in the runner container | https://docs.agenta.ai/self-host/agent-execution/run-agents-locally |
-| Add binaries, deps, folders, or CPU to agent runs | https://docs.agenta.ai/self-host/agent-execution/customize-the-agent-runtime |
-| Which sandbox provider is safe for my deployment | https://docs.agenta.ai/self-host/agent-execution/sandbox-isolation-and-security |
-| Every runner environment variable | https://docs.agenta.ai/self-host/agent-execution/runner-configuration |
+| Which sandbox is safe for my deployment | https://docs.agenta.ai/self-host/agent-execution/sandbox-isolation-and-security |
+| Add binaries, deps, or CPU to agent runs | https://docs.agenta.ai/self-host/agent-execution/customize-the-agent-runtime |
 
-## Operational resources (the part not in the docs)
+## Resources
 
-Open the file that matches the phase you are in.
-
-- [resources/decisions.md](resources/decisions.md) — the four decisions above, expanded
-  into the exact `run.sh` flags and env vars each one sets.
-- [resources/operate.md](resources/operate.md) — `run.sh` flags, env-file resolution,
-  running multiple isolated instances, building a non-released branch, and when a URL
-  change needs a container recreate vs an image rebuild.
-- [resources/harden.md](resources/harden.md) — public-IP hardening: loopback-bind
-  Postgres and the Traefik dashboard, change the default DB creds, generate real
-  `AGENTA_AUTH_KEY` / `AGENTA_CRYPT_KEY`.
-- [resources/troubleshoot.md](resources/troubleshoot.md) — field-verified failures keyed
-  to the exact error text: runner CLI not found, `http://` redirects behind a proxy,
-  subscription login not read, docker.sock permission, empty supertokens URI.
-- [resources/verify.md](resources/verify.md) — the smoke tests that prove a deployment is
-  healthy: API health, runner health, the runner startup log, a Daytona sandbox count,
-  loopback-bound ports.
+- [resources/decisions.md](resources/decisions.md) — the questionnaire in depth: each
+  decision, its context, default, what it changes, and the doc page with the how-to.
+- [resources/test.md](resources/test.md) — the mandatory end-to-end test that proves the
+  deployment and an agent actually work.
+- [resources/troubleshoot.md](resources/troubleshoot.md) — field-verified failures keyed to
+  the exact error text.
+- [resources/harden.md](resources/harden.md) — OSS remote hardening, for a public host.
+- [resources/send-feedback.md](resources/send-feedback.md) — how to send the optional,
+  user-approved setup feedback. Public topic; never include secrets.
 
 ## Ground rules
 
-- The docs are the source of truth. If a resource file and a doc disagree, the doc wins and
-  the resource file is stale. Fix it.
-- Verify every command before you hand it to an operator. These run against a real
-  deployment. The commands here were checked against the Compose files in the Agenta
-  repo's `hosting/` directory.
-- These commands run against a checked-out clone of the Agenta repo
-  (https://github.com/Agenta-AI/agenta). Run them from the root of that clone; `run.sh`
-  resolves paths relative to it.
+- The docs are the source of truth. If a resource file and a doc disagree, the doc wins.
+- Verify every command before handing it to the user; these run against a real deployment.
+- Never print or send secrets (API keys, tokens, passwords, DB creds).

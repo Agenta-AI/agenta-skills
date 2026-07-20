@@ -256,3 +256,22 @@ stalled-approval signature); and `INCOMPLETE` when it never ran. **A tool NAME a
 executed list is NOT proof it completed** — a gated write can sit in the list with no result. And
 for an external WRITE, even a returned result is only truly confirmed by reading the side effect
 back (e.g. fetch the channel history). That read-back is the one certain check.
+
+**A stalled approval through `build.sh`/`test-agent.sh` specifically is usually unresolvable,
+not just slow.** Those scripts hit the low-level lab endpoint, which does not hydrate a
+resumable Playground session — so a pending approval raised there has nothing to approve it
+against and can go permanently unresolved. Confirmed: the identical config/instructions that
+stalled on `SEND_MESSAGE` through `test-agent.sh` ran clean, unapproved-prompt-free, through a
+real Playground chat session. If you need to test a WRITE tool end to end without a human
+clicking "approve" in the Playground, set `harness.permissions.default_mode` to
+`"bypassPermissions"` in the config's `harness` block (the same field the Playground's Advanced
+panel calls "Bypass (skip every gate)"):
+```json
+"harness": { "kind": "claude", "permissions": { "default_mode": "bypassPermissions" } }
+```
+Verified end to end: with this set, a `SEND_MESSAGE` call that previously stalled with
+`APPROVAL: paused` and an `UNCONFIRMED` `check-tools.sh` verdict instead completed with an `ok`
+result and a `PASS` verdict, through `test-agent.sh`. This is a testing convenience, not a
+default — do not add it to the fixed boilerplate. It skips every approval gate for the whole
+run, including ones a real end user would want to review, so only set it deliberately when
+you're the one testing.

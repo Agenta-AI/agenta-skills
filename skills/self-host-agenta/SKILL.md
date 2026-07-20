@@ -33,12 +33,20 @@ read. Be concise.
    (the routing table below). Work from a checked-out clone of
    https://github.com/Agenta-AI/agenta; `run.sh` resolves paths relative to its root.
 
-4. **Test — mandatory, never skipped.** Once the stack is up, prove it works end to end:
-   health check, sign up, create an agent, run a prompt and a tool call, confirm the run
-   completes. If anything fails, troubleshoot and retry. Do not report success until the
-   test passes. Steps: [resources/test.md](resources/test.md).
+4. **Test in levels, and let the user pick the depth.** Always run the quick sanity check
+   (API health, runner reachable, sign-up reaches the studio). Then ask whether they want to
+   go further: a quick functional check (run one prompt, a few minutes) or a full end-to-end
+   check (tool call, durable mounts, and where the run executed, about 15 to 20 minutes). Do
+   not run the deeper levels without asking. Troubleshoot and retry on any failure. Steps:
+   [resources/test.md](resources/test.md).
 
-5. **Offer feedback.** At the end, or when something breaks, ask the user: "May I send
+5. **Point out folder mounts (local sandbox only).** Once setup is done, and only if they
+   chose the local sandbox, tell them in one sentence that they can give an agent access to a
+   host folder by mounting it, and link
+   [customize the agent runtime](https://docs.agenta.ai/self-host/agent-execution/customize-the-agent-runtime).
+   Skip this for Daytona.
+
+6. **Offer feedback.** At the end, or when something breaks, ask the user: "May I send
    anonymous setup feedback to help the Agenta team improve this?" Send only if they agree,
    and never send secrets. Thank them either way — the team is grateful.
    How: [resources/send-feedback.md](resources/send-feedback.md).
@@ -54,6 +62,11 @@ Make these with the user in step 2. Full context and doc links in
 - **Sandbox (where agent code runs)** — local (fast, shares the runner container, single
   trusted user; default for a first local setup), or Daytona (isolated per run, needs a
   Daytona API key).
+- **App tools and triggers (optional)** — to connect third-party apps as tools, or use event
+  triggers (a third-party app firing your agent), the deployment needs Composio, which needs a
+  free Composio account and `COMPOSIO_API_KEY`. Ask whether they want to set this up now or
+  skip it; the default is skip. Built-in tools, MCP servers, and schedule (time-based)
+  triggers work without it. This is separate from schedule triggers.
 - **Exposure** — only if remote: plain `IP:port`, or a domain with TLS.
 
 ## Routing table: "I want to X" -> OSS doc
@@ -73,13 +86,14 @@ Make these with the user in step 2. Full context and doc links in
 | Run agents locally in the runner container | https://docs.agenta.ai/self-host/agent-execution/run-agents-locally |
 | Which sandbox is safe for my deployment | https://docs.agenta.ai/self-host/agent-execution/sandbox-isolation-and-security |
 | Add binaries, deps, or CPU to agent runs | https://docs.agenta.ai/self-host/agent-execution/customize-the-agent-runtime |
+| Connect app tools, MCP servers, and triggers | https://docs.agenta.ai/self-host/app-tools-and-triggers |
 
 ## Resources
 
 - [resources/decisions.md](resources/decisions.md) — the questionnaire in depth: each
   decision, its context, default, what it changes, and the doc page with the how-to.
-- [resources/test.md](resources/test.md) — the mandatory end-to-end test that proves the
-  deployment and an agent actually work.
+- [resources/test.md](resources/test.md) — tiered tests: the always-run sanity check, then
+  the optional functional and full end-to-end levels.
 - [resources/troubleshoot.md](resources/troubleshoot.md) — field-verified failures keyed to
   the exact error text.
 - [resources/harden.md](resources/harden.md) — OSS remote hardening, for a public host.

@@ -65,9 +65,11 @@ personal-subscription run, but the harness prompts to log in again or fails to a
 mode `0600` and owned by your host user. If your host uid is not 1000, the container cannot
 read the file through the bind mount, so the login looks absent.
 
-**Fix.** Copy the login into a directory owned by uid 1000 and mount that directory
-**read-write** (the harness rewrites tokens). The subscription how-to has the exact commands
-and the `id -u` check: https://docs.agenta.ai/self-host/use-your-own-subscription .
+**Fix.** Do not copy the login. Mount your real login directory **read-write** and run the
+runner as your own user so it can read the file: add `user: "<id -u>:<id -g>"` and `HOME: /tmp`
+to the `runner` service. Sharing the real file keeps the container and your own machine in sync;
+a copy drifts and dies on the next token rotation (entry 12). The subscription how-to has the
+exact override and the `id -u` check: https://docs.agenta.ai/self-host/use-your-own-subscription .
 
 ## 4. `permission denied ... /var/run/docker.sock`
 
@@ -221,3 +223,40 @@ that directory and grant `node` write access, then rebuild and republish. Manage
 no-key local runs also fall back to a per-run temporary directory the runtime user owns; the
 gotcha remains for a subscription run, which must use the operator's mounted Pi agent
 directory.
+
+## 11. `docker compose up` fails with `... not found` or `manifest unknown` on an image
+
+**Symptom.** Pulling an image fails and the stack does not start, for example
+`failed to resolve reference "ghcr.io/agenta-ai/agenta-runner:latest": not found` or
+`manifest unknown`.
+
+**Cause.** The image tag you are pulling is not published to the registry. The Compose files
+default every image to `:latest`; a tag that has not been published yet, or a pinned version
+that predates a service, does not exist.
+
+**Fix.** Pin the image tags to a published release version in your env file. Use the same
+version for all four services:
+
+```bash
+AGENTA_WEB_IMAGE_TAG=v0.105.6
+AGENTA_API_IMAGE_TAG=v0.105.6
+AGENTA_SERVICES_IMAGE_TAG=v0.105.6
+AGENTA_RUNNER_IMAGE_TAG=v0.105.6
+```
+
+Version pinning: https://docs.agenta.ai/self-host/faq .
+
+## 12. A subscription login works, then dies about a day later
+
+**Symptom.** A personal-subscription run worked yesterday. Today the harness prompts to log in
+again, with no configuration change.
+
+**Cause.** You mounted a *copy* of your login instead of the real file. Your own machine and the
+container each hold the same login token, and the provider rotates the token on refresh. When
+your own machine refreshes, the container's copy is left holding the retired token and stops
+working. Two sessions sharing the *same* file stay in sync; a copy drifts.
+
+**Fix.** Mount your real login directory **read-write** (not a copy), so the container and your
+own machine share one file. On a host whose uid is not 1000, run the runner as your own user
+instead of copying (entry 3). The subscription how-to has the override:
+https://docs.agenta.ai/self-host/use-your-own-subscription .

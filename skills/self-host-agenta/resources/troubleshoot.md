@@ -260,3 +260,57 @@ working. Two sessions sharing the *same* file stay in sync; a copy drifts.
 own machine share one file. On a host whose uid is not 1000, run the runner as your own user
 instead of copying (entry 3). The subscription how-to has the override:
 https://docs.agenta.ai/self-host/use-your-own-subscription .
+
+## 13. `record log is unreadable; cannot rebuild the conversation`, and every runner callback 401s
+
+**Symptom.** On a deployment reachable by a public hostname, agent runs fail with
+`Agent run failed: session <id> record log is unreadable; cannot rebuild the conversation`
+while the rest of the app works. The runner logs show:
+
+```
+[sessions] stream sessionOwned=true sessionId=... cred=DROPPED(endpoint-not-agenta-ingest)
+[sessions/records-query] query FAILED session=...: HTTP 401
+[sessions/alive] heartbeat HTTP 401 session=... turn=...
+[sessions/persist] DROPPED session=... after 6 retries: HTTP 401
+```
+
+The API logs show `401` on `/sessions/records/ingest`, `/sessions/records/query`, and
+`/sessions/streams/heartbeat`, with `reason=None` (no Authorization header at all, as opposed to a
+rejected one). A related symptom without the error: the agent forgets earlier turns.
+
+**Cause.** The `runner` service has no `AGENTA_API_URL`. Every run carries the trace endpoint the
+API built from its own public base, e.g. `https://agenta.example.com/api/otlp/v1/traces`, while the
+runner is usually given only its in-network hop, `AGENTA_API_INTERNAL_URL=http://api:8000`. The
+runner matches the run's endpoint against the API bases it knows to decide whether the run's
+credential belongs to this platform or to a third-party OTLP collector. The public endpoint matches
+neither base it knows, so it withholds the credential and every callback to the API is rejected.
+Nothing is written to the conversation record log and nothing can be read back.
+
+This bites Compose deployments, not Helm: the chart always sets `AGENTA_API_URL` on the runner pod.
+It appeared in v0.114.0, which is when the runner started attributing the credential this way.
+
+**Fix.** Set `AGENTA_API_URL` on the runner to the same public API base the `api` and `services`
+containers use, then recreate the runner:
+
+```bash
+docker compose up -d --force-recreate runner
+docker compose exec runner printenv AGENTA_API_URL   # confirm it landed
+```
+
+Watch out for the same trap as entry 8, in the other direction. The runner's Compose block reads
+`AGENTA_API_URL: ${AGENTA_API_URL:-}`, which comes from **interpolation** (the shell, or
+`--env-file`), while `api` and `services` read theirs from `env_file:`. So the variable can be
+present in the api container and absent in the runner from one and the same file. Two ways it goes
+missing:
+
+- The file is passed as `env_file:` only. Export it, or pass the same file with `--env-file`.
+- An override compose file declares `AGENTA_API_URL:` with **no value** for the runner. That form
+  tells Compose to pass the variable through from the host shell, and to leave it unset entirely
+  when the shell does not have it. Give it a value, or export it before `docker compose up`.
+
+Tell the two empty cases apart from the runner log: `cred=DROPPED(endpoint-not-agenta-ingest)` is
+this entry, and `cred=ABSENT(caller-sent-none)` means the caller sent no credential at all, which is
+a different problem.
+
+Sessions that ran while this was broken keep the gaps in their history. They stop erroring once the
+variable is set, but the turns recorded during the outage stay lost. New sessions are unaffected.

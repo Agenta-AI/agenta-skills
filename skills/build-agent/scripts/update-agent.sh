@@ -18,6 +18,8 @@ VARIANT="${1:?usage: update-agent.sh <variant_id> <config.json> [message]}"
 CONFIG_FILE="${2:?usage: update-agent.sh <variant_id> <config.json> [message]}"
 MESSAGE="${3:-update agent config}"
 
+validate_agent_config_delta "$CONFIG_FILE" || exit 1
+
 AGENT_CONFIG="$(cat "$CONFIG_FILE")"
 BODY="$(jq -n --arg vid "$VARIANT" --arg msg "$MESSAGE" --argjson agent "$AGENT_CONFIG" \
   '{workflow_revision:{workflow_variant_id:$vid, message:$msg,

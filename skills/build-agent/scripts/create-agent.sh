@@ -13,6 +13,8 @@ CONFIG_FILE="${1:?usage: create-agent.sh <config.json> <slug> [name]}"
 SLUG="${2:?usage: create-agent.sh <config.json> <slug> [name]}"
 NAME="${3:-$SLUG}"
 
+validate_agent_config "$CONFIG_FILE" || exit 1
+
 AGENT_CONFIG="$(cat "$CONFIG_FILE")"
 BODY="$(jq -n --arg slug "$SLUG" --arg name "$NAME" --argjson agent "$AGENT_CONFIG" '
   {application: {slug: $slug, name: $name,

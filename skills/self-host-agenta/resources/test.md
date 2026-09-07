@@ -31,10 +31,22 @@ docker compose exec api curl -fsS http://runner:8765/health
 ```
 
 It returns the runner identity (`status`, `runner`, `protocol`, `engines`, `harnesses`). If this
-fails while the runner container is up, `AGENTA_RUNNER_INTERNAL_URL` is wrong or blank
-(troubleshoot.md entry 1). A bad provider list or a Daytona provider with no credential fails runner
+fails while the runner container is up, the runner is not on the network the api expects. A bad
+provider list or a Daytona provider with no credential fails runner
 startup; check `docker compose logs runner | grep '\[sandbox-agent\]'` for the redacted config
 summary and `http server listening on 0.0.0.0:8765`.
+
+A working network hop does not prove the containers know the address. Both callers must carry the
+variable:
+
+```bash
+docker compose exec services printenv AGENTA_RUNNER_INTERNAL_URL   # runs
+docker compose exec api printenv AGENTA_RUNNER_INTERNAL_URL        # Stop and kill
+```
+
+Each prints `http://runner:8765`. An empty line from `services` means runs fail (troubleshoot.md
+entry 1). An empty line from `api` means runs work but Stop never lands (troubleshoot.md entry 14);
+the `gh.local` and `gh.ssl` files before v0.115.3 have this gap.
 
 ### 3. Sign up and reach the studio
 

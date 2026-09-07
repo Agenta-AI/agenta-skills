@@ -52,8 +52,8 @@ The example env files ship the same `replace-me` placeholder for several more se
 each before exposing the host:
 
 - `AGENTA_RUNNER_TOKEN` — the shared token that gates the runner. **Required** even locally
-  (the runner refuses to boot without it), and it must be the **same** value on the `services`
-  and `runner` containers. `openssl rand -hex 32`. (troubleshoot.md entry 6.)
+  (the runner refuses to boot without it), and it must be the **same** value on the `api`,
+  `services`, and `runner` containers. `openssl rand -hex 32`. (troubleshoot.md entry 6.)
 - `AGENTA_STORE_ACCESS_KEY` / `AGENTA_STORE_SECRET_KEY` — credentials for the bundled object
   store. `AGENTA_STORE_SIGNING_KEY` — the mount-signing key; generate with
   `openssl rand -base64 32`. The `seaweedfs` service and the api read these same values, so a

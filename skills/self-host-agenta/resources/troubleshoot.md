@@ -10,20 +10,21 @@ symptom -> cause -> fix. If your symptom is not here, the configuration referenc
 **Symptom.** An agent run fails and the API logs show a message like
 `<backend> could not find runner CLI at /app/runner/src/cli.ts`.
 
-**Cause.** The API did not get a runner URL, so the SDK adapter fell back to launching the
-runner as a subprocess and looked for its CLI on disk. The API image does not contain the
-runner, so the CLI is not there. This means `AGENTA_RUNNER_INTERNAL_URL` is unset or was
-overridden to empty in your env file.
+**Cause.** The `services` container did not get a runner URL, so the SDK adapter fell back to
+launching the runner as a subprocess and looked for its CLI on disk. The services image does
+not contain the runner, so the CLI is not there. This means `AGENTA_RUNNER_INTERNAL_URL` is
+unset or was overridden to empty in your env file.
 
-**Fix.** Point the API at the runner container over HTTP:
+**Fix.** Point the services container at the runner over HTTP:
 
 ```bash
 AGENTA_RUNNER_INTERNAL_URL=http://runner:8765
 ```
 
-The Compose files default this to `http://runner:8765` already, so this bites when a custom
-env file blanks it out. Confirm your env file does not set `AGENTA_RUNNER_INTERNAL_URL=` to
-empty. Runner variables are in the configuration reference:
+Every Compose file sets this on `services` already, so this bites when a custom env file
+blanks it out. Confirm your env file does not set `AGENTA_RUNNER_INTERNAL_URL=` to empty. The
+`api` container needs the same value for Stop; that is entry 14, and its symptom is different.
+Runner variables are in the configuration reference:
 https://docs.agenta.ai/self-host/configuration .
 
 ## 2. Behind a reverse proxy or Cloudflare, redirects come back as `http://` and drop `/api`
@@ -314,3 +315,43 @@ a different problem.
 
 Sessions that ran while this was broken keep the gaps in their history. They stop erroring once the
 variable is set, but the turns recorded during the outage stay lost. New sessions are unaffected.
+
+## 14. Stop does nothing, and the api logs `cancel: no runner internal_url/token configured`
+
+**Symptom.** You press Stop on a running agent turn and nothing happens. The api log shows, at
+the moment of the Stop and again on each retry:
+
+```
+[WARN.] cancel: no runner internal_url/token configured; command <id> cannot be delivered
+[WARN.] control delivery unreachable for command=<id> session=<id>: no detail
+```
+
+A few minutes later the chat shows "The agent stopped responding and the run was closed", the
+warm sandbox is gone, and the next send starts cold. The runner log shows the turn healthy the
+whole time (`heartbeat OK running=true`). If the turn finishes on its own first, the session stays
+in state "stopping" and the composer on `/m` keeps showing the Stop button. Runs themselves work,
+and the sanity check in test.md passes.
+
+**Cause.** The `api` container has no `AGENTA_RUNNER_INTERNAL_URL`. The api delivers a Stop to the
+runner directly, over the same URL and token the `services` container uses for runs. Without the
+URL it cannot deliver the cancel, retries three times, and then closes the healthy turn as lost.
+The `gh.local` (oss and ee) and `gh.ssl` Compose files before Agenta v0.115.3 set the URL on
+`services` only, and the example env files ship it commented out, so the api never gets it.
+
+**Fix.** Give the `api` service the same URL and token as `services`, then recreate it:
+
+```bash
+docker compose exec api printenv AGENTA_RUNNER_INTERNAL_URL   # empty means this entry
+docker compose up -d --force-recreate api
+```
+
+On a Compose file older than v0.115.3, add both lines to the `api` service's `environment`
+block, next to `SCRIPT_NAME`:
+
+```yaml
+- AGENTA_RUNNER_INTERNAL_URL=${AGENTA_RUNNER_INTERNAL_URL:-http://runner:8765}
+- AGENTA_RUNNER_TOKEN=${AGENTA_RUNNER_TOKEN:?AGENTA_RUNNER_TOKEN is required}
+```
+
+Or upgrade to v0.115.3 or later, whose Compose files carry them. Press Stop on a new turn: the
+turn ends within a second and the `cannot be delivered` line does not appear.

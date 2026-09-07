@@ -53,7 +53,7 @@ RESP_FILE="$TMP/resp.json"; HDR="$TMP/headers"
 
 # Accept: application/json negotiates the non-streaming (batch) invoke — one JSON object back,
 # not an event stream.
-curl -s -X POST "$AGENTA_HOST/services/agent/v0/invoke" \
+curl -s -X POST "$_API_ROOT/services/agent/v0/invoke" \
   -H "Authorization: ApiKey $AGENTA_API_KEY" -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   --max-time 600 -D "$HDR" -d "$BODY" > "$RESP_FILE"

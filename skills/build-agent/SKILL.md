@@ -28,16 +28,26 @@ fallback; prefer what is written here.
 
 Do these two things once, before any build.
 
-**1. Credentials.** The scripts need `AGENTA_API_KEY`, and `AGENTA_HOST` only if the user
-self-hosts (it defaults to Agenta cloud, `https://cloud.agenta.ai`).
+**1. Credentials.** The scripts need `AGENTA_API_KEY`, and `AGENTA_HOST` only when it is
+not the default cloud (`https://cloud.agenta.ai`). Resolve the host BEFORE asking for the
+key — the key lives on a page whose URL you build from the host.
 
-- Ask the user for their API key. Point them to it: the **API keys** page in their Agenta
-  project settings (on cloud, under `https://cloud.agenta.ai`). Ask for the host URL only if
-  they self-host, in which case it is their own Agenta domain.
+- Check what is already set: `AGENTA_API_KEY` and `AGENTA_HOST` in the environment or a
+  local `.env`. Never re-ask for a value that is already there; if the key is set, skip to
+  prerequisites.
+- Resolve the host with one question: are they on Agenta cloud **EU**, cloud **US**, or
+  **self-hosting**? EU → `https://eu.cloud.agenta.ai`, US → `https://us.cloud.agenta.ai`,
+  self-hosting → ask for their Agenta URL (with scheme). Not sure or just "cloud" →
+  `https://cloud.agenta.ai`. No trailing slash.
+- Then ask for the API key, and give them the direct link to it:
+  `<host>/settings?tab=apiKeys` (for example
+  `https://eu.cloud.agenta.ai/settings?tab=apiKeys`). It opens the API keys page in their
+  own workspace; **Generate** creates a key if none exists. If that link 404s (older
+  self-hosted versions): **Settings** in the sidebar, then the **API Keys** tab.
 - Then offer to set it up for them, either way they prefer:
   - **Write it for them:** create a `.env` file in the working directory with
-    `AGENTA_API_KEY=...` (and `AGENTA_HOST=...` if self-hosting). `lib.sh` picks up a local
-    `.env` automatically.
+    `AGENTA_API_KEY=...` (and `AGENTA_HOST=...` when not the default cloud). `lib.sh` picks
+    up a local `.env` automatically.
   - **Hand them a block to paste:** give them the lines to `export`, or the `.env` contents
     to create themselves.
 - Never print or commit the key. Add `.env` to `.gitignore` if the directory is a repo.

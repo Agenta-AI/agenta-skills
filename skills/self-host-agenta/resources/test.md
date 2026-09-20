@@ -63,7 +63,8 @@ Once the sanity check passes, ask the user which they want:
 - **Nothing more.** The stack is up and reachable.
 - **A quick functional check (a few minutes).** Run one prompt through an agent (level 1 below).
 - **A full end-to-end check (about 15 to 20 minutes).** Every agent feature: a tool call, durable
-  mounts, and where the run executed (levels 1 to 3 below).
+  mounts, one MCP call if they will use MCP servers, and where the run executed (levels 1 to 3
+  below).
 
 ## Level 1: run a prompt
 
@@ -77,7 +78,7 @@ host needs the uid override, troubleshoot.md entry 3). If a run fails with a `40
 `AGENTA_RUNNER_TOKEN is required`, the token is unset or mismatched (troubleshoot.md entry 6). To
 build the agent itself, the `build-agent` skill drives this over the API.
 
-## Level 2: tool call and durable mounts
+## Level 2: tool call, durable mounts, and one MCP call
 
 1. Enable one tool on the agent and run a prompt that exercises it. Confirm the tool call happens and
    the run finishes without error.
@@ -91,6 +92,15 @@ curl -fsS http://127.0.0.1:8333 >/dev/null && echo OK    # adjust AGENTA_STORE_P
 
 A `503 Mount storage backend is not configured` or a file that vanishes between runs means the store
 is missing or the `AGENTA_STORE_*` vars are blank (troubleshoot.md entry 7).
+
+**One MCP call, only if they plan to use MCP servers.** Connect one MCP server that needs no
+sign-in and run one agent turn that calls a tool on it. From 0.119.0 the api relays that call, so
+this is what proves the relay can reach the server at all. Run it against a server of the kind they
+will actually use, a public one or one of their own.
+
+A tool call that fails with `blocked target`, or an endpoint that will not save with
+`base_url is invalid`, is the relay's outbound guard refusing the address, not a broken MCP server
+(troubleshoot.md entry 15).
 
 ## Level 3: confirm the run executed where you chose
 

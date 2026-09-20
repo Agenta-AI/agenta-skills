@@ -355,3 +355,103 @@ block, next to `SCRIPT_NAME`:
 
 Or upgrade to v0.115.3 or later, whose Compose files carry them. Press Stop on a new turn: the
 turn ends within a second and the `cannot be delivered` line does not appear.
+
+## 15. An agent's MCP server stops working after upgrading to 0.119.0: `blocked target`
+
+**Symptom.** An MCP server the agent used before the upgrade now fails on every call, with one
+of:
+
+```
+blocked target: Upstream URL must use https.
+blocked target: Upstream URL resolves to a blocked IP range.
+```
+
+Connecting the server can fail earlier and with a different message. Saving a custom MCP
+endpoint whose URL is plain `http://` or a literal private IP returns `400` with
+`endpoint.data.route.base_url is invalid: URL must use https.` (or
+`... URL resolves to a blocked IP range.`).
+
+**Cause.** From Agenta 0.119.0 the `api` container relays every MCP call an agent makes
+(`AGENTA_MCP_GATEWAY_ENABLED`, on by default), so the server's credential stays on the
+deployment instead of traveling into the sandbox. Before that version the sandbox dialed a
+declared MCP server directly, and nothing in Agenta inspected the address. The relay has its
+own outbound guard, which requires https and refuses a target that resolves into a private or
+otherwise internal range. An MCP server on your own network is exactly what that guard
+refuses.
+
+The upgrade case is the usual way in. From 0.119.0 the four self-host env templates ship the
+two opt-ins in the fix below set to `true`, so a fresh deployment works. An existing
+deployment keeps its own env file, which carries neither line, and the code default for the
+guard is strict. So the deployment starts refusing MCP servers that worked the day before,
+with no configuration change on your side.
+
+Three variables, and they are easy to mix up:
+
+| Variable | Read by | Decides |
+|---|---|---|
+| `AGENTA_INSECURE_EGRESS_ALLOWED` | `api` | Whether you can **save** an MCP endpoint whose URL is plain http or a literal private IP. The older, wider setting: it also governs webhooks and other outbound calls Agenta makes. |
+| `AGENTA_GATEWAYS_INSECURE_EGRESS_ALLOWED` | `api` | Whether the relay will **call** that endpoint. Code default `false`. |
+| `AGENTA_GATEWAYS_INSECURE_HTTP_ALLOWED` | `services`, `runner` | Whether the gateway credential may travel when your **own** Agenta deployment is served over plain http. Nothing to do with the MCP server's address. |
+
+Setting `AGENTA_INSECURE_EGRESS_ALLOWED=true` does not open the relay. The gateway does not
+inherit it, because its targets are URLs a project supplied and it dials them with a stored
+credential attached. So a deployment that already allowed insecure webhooks still refuses the
+MCP call.
+
+**Fix.** Add the lines your env file is missing, then recreate the containers that read them.
+For a private deployment on your own network:
+
+```bash
+AGENTA_GATEWAYS_INSECURE_EGRESS_ALLOWED=true    # api: the relay may call it
+AGENTA_GATEWAYS_INSECURE_HTTP_ALLOWED=true      # services + runner: only if Agenta itself is on plain http
+```
+
+If the `400` at save time is what you hit, the `.gh` env templates also ship
+`AGENTA_INSECURE_EGRESS_ALLOWED=false`, which is what refuses a plain-http or private-IP URL
+before it is ever stored. Set it to `true` as well, or give the MCP server an https URL with a
+resolvable hostname.
+
+An env change reaches a container only when the container is recreated:
+
+```bash
+docker compose up -d --force-recreate api services runner
+docker compose exec api printenv AGENTA_GATEWAYS_INSECURE_EGRESS_ALLOWED   # confirm it landed
+```
+
+Watch the same interpolation trap as entry 13. The `runner` service has no `env_file:` in any
+Compose file, so it reads `AGENTA_GATEWAYS_INSECURE_HTTP_ALLOWED` from **interpolation** (the
+shell, or `--env-file`), while `api` and `services` read theirs from `env_file:`. One and the
+same file can therefore set the variable everywhere except the runner, and the runner is the
+leg that refuses the run. `run.sh` passes `--env-file` for you, so this bites when you drive
+`docker compose` directly: export the variable, or pass the same file with `--env-file`. Then
+check it landed:
+
+```bash
+docker compose exec runner printenv AGENTA_GATEWAYS_INSECURE_HTTP_ALLOWED
+```
+
+Keeping the guard on is the right answer when people you do not vet can create MCP connections
+here. Leave `AGENTA_GATEWAYS_INSECURE_EGRESS_ALLOWED=false` and list the internal servers you
+trust in `AGENTA_MCP_GATEWAY_HOST_ALLOWLIST` instead (harden.md entry 4).
+
+**On Helm.** The chart has no dedicated values for these yet. Set them as raw environment
+entries on the right components, quoting the values because a Kubernetes env value must be a
+string:
+
+```yaml
+api:
+  extraEnv:
+    - name: AGENTA_GATEWAYS_INSECURE_EGRESS_ALLOWED
+      value: "true"
+services:
+  extraEnv:
+    - name: AGENTA_GATEWAYS_INSECURE_HTTP_ALLOWED
+      value: "true"
+agentRunner:
+  extraEnv:
+    - name: AGENTA_GATEWAYS_INSECURE_HTTP_ALLOWED
+      value: "true"
+```
+
+The runner's values key is `agentRunner`, not `runner`. Variable reference:
+https://docs.agenta.ai/self-host/configuration .

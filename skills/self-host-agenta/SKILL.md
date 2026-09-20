@@ -36,9 +36,9 @@ read. Be concise.
 4. **Test in levels, and let the user pick the depth.** Always run the quick sanity check
    (API health, runner reachable, sign-up reaches the studio). Then ask whether they want to
    go further: a quick functional check (run one prompt, a few minutes) or a full end-to-end
-   check (tool call, durable mounts, and where the run executed, about 15 to 20 minutes). Do
-   not run the deeper levels without asking. Troubleshoot and retry on any failure. Steps:
-   [resources/test.md](resources/test.md).
+   check (tool call, durable mounts, one MCP call, and where the run executed, about 15 to 20
+   minutes). Do not run the deeper levels without asking. Troubleshoot and retry on any
+   failure. Steps: [resources/test.md](resources/test.md).
 
 5. **Point out folder mounts (local sandbox only).** Once setup is done, and only if they
    chose the local sandbox, tell them in one sentence that they can give an agent access to a
@@ -67,6 +67,10 @@ Make these with the user in step 2. Full context and doc links in
   free Composio account and `COMPOSIO_API_KEY`. Ask whether they want to set this up now or
   skip it; the default is skip. Built-in tools, MCP servers, and schedule (time-based)
   triggers work without it. This is separate from schedule triggers.
+- **MCP servers (optional)** — only if their agents will use them. From Agenta 0.119.0 the
+  api relays every MCP call, and its outbound guard decides which servers an agent can reach.
+  Ask whether those servers sit on their own network or answer over plain HTTP, and whether
+  untrusted people can connect MCP servers here. Explain the trade-off before asking.
 - **Exposure** — only if remote: plain `IP:port`, or a domain with TLS.
 
 ## Routing table: "I want to X" -> OSS doc
@@ -87,6 +91,7 @@ Make these with the user in step 2. Full context and doc links in
 | Which sandbox is safe for my deployment | https://docs.agenta.ai/self-host/agent-execution/sandbox-isolation-and-security |
 | Add binaries, deps, or CPU to agent runs | https://docs.agenta.ai/self-host/agent-execution/customize-the-agent-runtime |
 | Connect app tools, MCP servers, and triggers | https://docs.agenta.ai/self-host/app-tools-and-triggers |
+| Reach an MCP server on my own network or on plain HTTP | https://docs.agenta.ai/self-host/configuration |
 
 ## Resources
 

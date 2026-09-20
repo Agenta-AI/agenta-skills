@@ -58,3 +58,37 @@ each before exposing the host:
   store. `AGENTA_STORE_SIGNING_KEY` — the mount-signing key; generate with
   `openssl rand -base64 32`. The `seaweedfs` service and the api read these same values, so a
   shared replacement still works out of the box.
+
+## 4. Close the MCP gateway's egress guard if others can connect MCP servers
+
+From Agenta 0.119.0 the `api` container relays every MCP call an agent makes, so the address
+an MCP connection names is dialed from your API container rather than from the sandbox. From
+that version the four self-host env templates ship the relay's outbound guard open, because a
+self-hosted MCP server usually sits on the operator's own network or answers over plain HTTP:
+
+```bash
+AGENTA_GATEWAYS_INSECURE_EGRESS_ALLOWED=true
+```
+
+With the guard open, anyone who can create an MCP connection on this deployment can aim one at
+any address your API container can reach, including `10.0.0.0/8` and the rest of your internal
+network. On a deployment where people you do not vet can create those connections, close the
+guard and name the internal servers you trust instead:
+
+```bash
+AGENTA_GATEWAYS_INSECURE_EGRESS_ALLOWED=false
+AGENTA_MCP_GATEWAY_HOST_ALLOWLIST=mcp.internal,10.0.0.5
+```
+
+The allowlist is comma-separated and holds hostnames with no scheme and no path. A listed host
+skips the guard entirely; every other target must use https and must resolve to a public
+address, or the agent's tool call fails with `blocked target` (troubleshoot.md entry 15). Both
+variables are read by the `api` container only, so recreate it after the change:
+
+```bash
+docker compose up -d --force-recreate api
+```
+
+Closing the guard does not affect the credential the run carries back into Agenta. That is
+`AGENTA_GATEWAYS_INSECURE_HTTP_ALLOWED`, read by `services` and `runner`, and it stays as it
+is (decisions.md entry 5).
